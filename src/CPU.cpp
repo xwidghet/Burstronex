@@ -30,6 +30,9 @@ std::array<double, 4> ClockDivisors =
     12
 };
 
+// Windows compile fix. TODO: Remove once no iostream debug usage is in this file.
+#undef OVERFLOW
+
 enum class EStatusFlags : uint8_t {
   CARRY = 1 << 0,
   ZERO = 1 << 1,
