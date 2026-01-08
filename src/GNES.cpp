@@ -1,11 +1,14 @@
 #include "GNES.h"
 
 #include "RomLoader.h"
-#include <iostream>
+#include "RomParameters.h"
 
 void GNES::Run(const std::string& RomPath)
 {
-    RomLoader::Load(RomPath);
+    auto ROM = RomLoader::Load(RomPath);
 
-    mCPU = std::make_unique<CPU>(CPU_TIMING::NTSC);
+    if (ROM.PrgRomMemory.size() == 0)
+        return;
+
+    mCPU = std::make_unique<CPU>(ECPU_TIMING::NTSC);
 }

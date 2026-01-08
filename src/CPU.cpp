@@ -1,5 +1,6 @@
 #include "CPU.h"
 #include "OpCodeDecoder.h"
+#include "RomParameters.h"
 
 #include <array>
 #include <chrono>
@@ -46,7 +47,7 @@ enum class EStatusFlags : uint8_t {
   NEGATIVE =  1 << 7
 };
 
-CPU::CPU(CPU_TIMING Timing)
+CPU::CPU(ECPU_TIMING Timing)
 {
     mMasterClockFrequency = MasterClockFrequencies[static_cast<int>(Timing)];
     mClockDivisor = ClockDivisors[static_cast<int>(Timing)];
@@ -55,9 +56,12 @@ CPU::CPU(CPU_TIMING Timing)
     mCycleTime = 1.0 / mClockFrequency;
 }
 
-void CPU::Init(const uint16_t ProgramCodeLocation)
+void CPU::Init(const uint16_t ProgramCodeLocation, const ROMData& ROM)
 {
     mRegisters.PC = ProgramCodeLocation;
+
+    // What to do with trainer memory, do we need to increase size to load it?
+    int32_t TotalROMSize = ROM.ChrRomMemory.size() + ROM.PrgRomMemory.size();
 
     // Need to read ROM to determine memory size and PC location.
     // 6502 can only address up to 64KB due to 16bit address bus.
@@ -67,7 +71,7 @@ void CPU::Init(const uint16_t ProgramCodeLocation)
     // non-maskable interrupt handler 0xFFFA - 0xFFFB
     // Power on/Reset 0xFFFC - 0xFFFD
     // BRK/Interrupt Request handler 0xFFFE - 0xFFFF
-    mMemoryMapper = std::make_unique<MemoryMapper>(65535);
+    mMemoryMapper = std::make_unique<MemoryMapper>(TotalROMSize);
 }
 
 void CPU::Run()

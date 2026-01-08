@@ -6,14 +6,8 @@
 #include <memory>
 
 struct NESOpCode;
-
-enum class CPU_TIMING
-{
-    NTSC,
-    PAL,
-    DENDY,
-    PC
-};
+struct ROMData;
+enum class ECPU_TIMING;
 
 class CPU {
     // Are NES CPU Registers zero initialized??
@@ -45,10 +39,10 @@ class CPU {
     std::unique_ptr<MemoryMapper> mMemoryMapper;
 
 public :
-    CPU(CPU_TIMING Timing);
+    CPU(ECPU_TIMING Timing);
 
     // Initialize the CPU to begin running at the given Program Code location.
-    void Init(const uint16_t ProgramCodeLocation);
+    void Init(const uint16_t ProgramCodeLocation, const ROMData& ROM);
 
     void Run();
 
