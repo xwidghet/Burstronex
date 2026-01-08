@@ -46,7 +46,9 @@ void MemoryMapper::Write16Bit(const int32_t Address, uint16_t Value)
     uint16_t Low = Value & 0xFF;
     uint16_t High = (Value >> 8) & 0xFF;
 
-    mMemory[Address] = uint16_t((High << 8) | Low);
+    // What happens when it overflows?
+    mMemory[Address] = Low;
+    mMemory[Address+1] = High;
 }
 
 int32_t MemoryMapper::Wrap8Bit(int32_t Address, EAddressingMode AddressingMode)
