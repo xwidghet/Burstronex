@@ -9,7 +9,7 @@ class MemoryMapper {
     std::vector<uint8_t> mMemory;
 
 public:
-    MemoryMapper(const int32_t MemoryBankSize);
+    MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
 
     uint8_t Read8Bit(const int32_t Address);
 

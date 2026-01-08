@@ -31,6 +31,8 @@ class CPU {
         uint8_t P = 0;
     } mRegisters;
 
+    uint16_t mStackLocation = 0;
+
     double mMasterClockFrequency = 0;
     double mClockDivisor = 0;
     double mClockFrequency = 0.f;
@@ -39,10 +41,10 @@ class CPU {
     std::unique_ptr<MemoryMapper> mMemoryMapper;
 
 public :
-    CPU(ECPU_TIMING Timing);
+    CPU();
 
     // Initialize the CPU to begin running at the given Program Code location.
-    void Init(const uint16_t ProgramCodeLocation, const ROMData& ROM);
+    void Init(const ROMData& ROM);
 
     void Run();
 
@@ -50,6 +52,23 @@ public :
     // Returns cycles used.
     uint8_t ExecuteNextInstruction();
 
-    // Returns number of bytes used by operands to allow for incrementing PC.
-    void ExecuteInstruction(const NESOpCode* OpCode);
+    void ExecuteInstruction(NESOpCode* OpCode);
+
+// Should probably move instructions to a different file, but this'll do for now.
+private:
+    void PushStack(uint8_t Value);
+    uint8_t PopStack();
+
+    void BNE(NESOpCode* OpCode);
+    void BRK();
+    void JSR();
+    void RTS();
+    void CLC();
+    void ADC(const NESOpCode* OpCode);
+    void SBC(const NESOpCode* OpCode);
+    void LDA(const NESOpCode* OpCode);
+    void LDX(const NESOpCode* OpCode);
+    void LDY(const NESOpCode* OpCode);
+    void PHA();
+    void PLA();
 };

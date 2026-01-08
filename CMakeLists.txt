@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 4.2.1)
-project (GNESProject)
-set(CMAKE_CXX_STANDARD 20)
+project (GNESProject CXX)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the build type (Release, Debug, RelWithDebInfo, MinSizeRel)." FORCE)
+endif()
 
 add_executable(GNES)
 
@@ -12,3 +15,5 @@ target_sources(GNES
         src/MemoryMapper.cpp
         src/OpCodeDecoder.cpp
 	src/RomLoader.cpp)
+
+target_compile_features(GNES PRIVATE cxx_std_20)

@@ -10,5 +10,8 @@ void GNES::Run(const std::string& RomPath)
     if (ROM.PrgRomMemory.size() == 0)
         return;
 
-    mCPU = std::make_unique<CPU>(ECPU_TIMING::NTSC);
+    mCPU = std::make_unique<CPU>();
+    mCPU->Init(ROM);
+
+    mCPU->Run();
 }
