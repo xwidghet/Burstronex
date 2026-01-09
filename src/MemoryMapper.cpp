@@ -12,11 +12,12 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
 
     // PRG code starts at 0x8000 and goes to 0xFFFF
     // Seems like it should be always shifted to the end of the memory space, since the reset vector is at the very end of the address range.
-    std::memcpy(mMemory.data() + 0xFFFF - PrgRomMemory.size(), PrgRomMemory.data(), PrgRomMemory.size());
+    mPrgRomLocation =  (0xFFFF - PrgRomMemory.size()) + 1;
+    std::memcpy(mMemory.data() + mPrgRomLocation, PrgRomMemory.data(), PrgRomMemory.size());
 
     // Chr Memory requires a mapper to dynamically load information into 0x0000 -> 0x1FFF range during rendering.
     // Since it's only used for rendering, I can skip it for now.
-
+    mChrRomLocation = 0x0000;
 }
 
 uint8_t MemoryMapper::Read8Bit(const int32_t Address)
@@ -81,4 +82,14 @@ int32_t MemoryMapper::Wrap16Bit(int32_t Address, EAddressingMode AddressingMode)
     }
 
     return Address;
+}
+
+const uint16_t MemoryMapper::GetPrgRomLocation() const
+{
+    return mPrgRomLocation;
+}
+
+const uint16_t MemoryMapper::GetChrRomLocation() const
+{
+    return mChrRomLocation;
 }

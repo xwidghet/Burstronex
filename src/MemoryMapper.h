@@ -8,6 +8,9 @@
 class MemoryMapper {
     std::vector<uint8_t> mMemory;
 
+    uint16_t mPrgRomLocation;
+    uint16_t mChrRomLocation;
+
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
 
@@ -22,4 +25,8 @@ public:
     int32_t Wrap8Bit(int32_t Address, const EAddressingMode AddressingMode);
 
     int32_t Wrap16Bit(int32_t Address, const EAddressingMode AddressingMode);
+
+    const uint16_t GetPrgRomLocation() const;
+
+    const uint16_t GetChrRomLocation() const;
 };

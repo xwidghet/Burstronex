@@ -48,6 +48,12 @@ ROMData RomLoader::Load(const std::string& PathToRom)
 
 	ROMData RomData;
 
+	auto LastForwardsSlash = PathToRom.find_last_of("/");
+	auto FileExtentionPos = PathToRom.find_last_of(".");
+	RomData.Name = PathToRom.substr(LastForwardsSlash + 1, FileExtentionPos - LastForwardsSlash - 1);
+
+	std::cout << "Loading ROM: " + RomData.Name << std::endl;
+
 	if (bNES20Format)
 	{
 		RomData = ParseNES20ROM(FileBuffer);
@@ -83,6 +89,8 @@ ROMData RomLoader::ParseNES10ROM(const std::vector<char>& FileBuffer)
 	std::string HeaderPadding(FileBuffer.data()+10, 5);
 	std::cout << "Last Header Bytes: " + HeaderPadding << std::endl;
 
+	int32_t RomParserLocation = 16;
+
 	// 0 == Vertical "Horizontally Mirrored" (CIRAM A10 = PPU A11), 1 == Horizontal "Vertically Mirrored" (CIRAM A10 = PPU A10)
 	// bUsesAlternativeNametableLayout overrides this, need to check implementation when this occurs.
 	bool bNametableIsVerticle = Flags6 & 0b1;
@@ -116,8 +124,57 @@ ROMData RomLoader::ParseNES10ROM(const std::vector<char>& FileBuffer)
 	// Refer to the Bus Conflics page.
 	bool bHasBusConflicts = (Flags10 & 0b100000) >> 5;
 
-	// TODO: Finish implementing NES10 Format implementation
-	return ROMData();
+	std::vector<char> TrainerArea(0);
+	if (bContains512ByteTrainer)
+	{
+		TrainerArea = std::vector<char>(512);
+		std::memcpy(TrainerArea.data(), FileBuffer.data() + RomParserLocation, 512);
+
+		RomParserLocation += 512;
+	}
+
+	std::vector<char> PrgRomMemory(PRG_ROM_SIZE);
+	if (PRG_ROM_SIZE > 0)
+		std::memcpy(PrgRomMemory.data(), FileBuffer.data() + RomParserLocation, PRG_ROM_SIZE);
+
+	RomParserLocation += PRG_ROM_SIZE;
+
+	std::vector<char> ChrRomMemory(CHR_ROM_SIZE);
+	if (CHR_ROM_SIZE > 0)
+		std::memcpy(ChrRomMemory.data(), FileBuffer.data() + RomParserLocation, CHR_ROM_SIZE);
+
+	RomParserLocation += PRG_ROM_SIZE;
+
+	const int32_t INST_ROM_SIZE = bIsPlayChoice10 ? 8192 : 0;
+	std::vector<char> PlayChoiceInstRomMemory(INST_ROM_SIZE);
+	if (INST_ROM_SIZE > 0)
+		std::memcpy(ChrRomMemory.data(), FileBuffer.data() + RomParserLocation, INST_ROM_SIZE);
+
+	RomParserLocation += PRG_ROM_SIZE;
+
+	uint16_t PlayChoice10PROMData = 0;
+	uint16_t PlayChoice10PROMCounterOutput= 0;
+	if (INST_ROM_SIZE > 0)
+	{
+		PlayChoice10PROMData = FileBuffer[RomParserLocation++];
+		PlayChoice10PROMData = static_cast<uint16_t>(FileBuffer[RomParserLocation++]) << 8;
+
+		PlayChoice10PROMCounterOutput = FileBuffer[RomParserLocation++];
+		PlayChoice10PROMCounterOutput = static_cast<uint16_t>(FileBuffer[RomParserLocation++]) << 8;
+	}
+
+	ROMData ROM;
+	ROM.CPUTimingMode = bIsNTSC ? ECPU_TIMING::NTSC : ECPU_TIMING::PAL;
+	ROM.NameTableLayout = bNametableIsVerticle ? ENameTableLayout::Vertical : ENameTableLayout::Horizontal;
+	ROM.NameTableLayout = bUsesAlternativeNametableLayout ? ENameTableLayout::Alternative : ROM.NameTableLayout;
+
+	ROM.PrgRomMemory = PrgRomMemory;
+	ROM.ChrRomMemory = ChrRomMemory;
+	ROM.PlayChoiceInstRomMemory = PlayChoiceInstRomMemory;
+	ROM.Playchoice10PromData = PlayChoice10PROMData;
+	ROM.Playchoice10PromCounterOut = PlayChoice10PROMCounterOutput;
+
+	return ROM;
 }
 
 ROMData RomLoader::ParseNES20ROM(const std::vector<char>& FileBuffer)

@@ -1,8 +1,9 @@
 #include "OpCodeDecoder.h"
 
 // How many braces could a wood chuck chuck if a wood chuck could chuck wood.
-// Branches add once cycle
-// Crossing pages adds one cycle
+// Cycle counts are the constant cost, branches add one cycle, crossing memory pages adds one cycle.
+// Sizes are Instruction + Operands,
+// Ex. Immediate 1 Instruction + 1 Operand, Absolute Indexed 1 instruction + 2 operand.
 std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
 {{
     // 00
@@ -344,17 +345,19 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
     }}
 }};
 
+
+
 NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
 {
     // Should be 0-7
     int32_t Row = AAA;
-    int32_t Column = (CC % 4);
+    int32_t Column = 0;
 
     // Implicit third push from 0b11 passing 0b01 and 0b10 tests
     Column += (CC & 0b01) != 0 ? 8 : 0;
     Column += (CC & 0b10) != 0 ? 16 : 0;
 
-    NESOpCode Output = OpCodeTable[Row][Column];
+    NESOpCode Output = OpCodeTable[Row][Column + BBB];
 
     return Output;
 }

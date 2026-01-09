@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 enum class ECPU_TIMING
@@ -97,6 +98,8 @@ enum class EDefaultExpansionDevice : uint8_t {
 };
 
 struct ROMData {
+    std::string Name;
+
     ECPU_TIMING CPUTimingMode;
     ENameTableLayout NameTableLayout;
 
@@ -112,4 +115,12 @@ struct ROMData {
     std::vector<char> PrgRomMemory;
     std::vector<char> ChrRomMemory;
     std::vector<char> MiscelaneousRomMemory;
+
+    std::vector<char>PlayChoiceInstRomMemory;
+
+    // Needed to decode PlayChoiceInstRomMemory
+    uint16_t Playchoice10PromData;
+
+    // Needed to decode PlayChoiceInstRomMemory, usually 00,00,00,00,FF,FF,FF,FF,00,00,00,00,FF,FF,FF,FF
+    uint16_t Playchoice10PromCounterOut;
 };

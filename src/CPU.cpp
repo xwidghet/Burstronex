@@ -3,6 +3,7 @@
 #include "RomParameters.h"
 
 #include <array>
+#include <cassert>
 #include <cerrno>
 #include <chrono>
 #include <format>
@@ -84,10 +85,23 @@ void CPU::Init(const ROMData& ROM)
     mMemoryMapper = std::make_unique<MemoryMapper>(ROM.ChrRomMemory, ROM.PrgRomMemory);
 
     // PC Code is read from 0xFFFC and 0xFFFD (reset vector)
-    mRegisters.PC = mMemoryMapper->Read8Bit(0xFFFC);
-    mRegisters.PC |= static_cast<uint16_t>(mMemoryMapper->Read8Bit(0xFFFD)) << 8;
+    mRegisters.PC = mMemoryMapper->Read16Bit(0xFFFC);
+
+    //std::cout << std::format("FFFC: {0:x}", mMemoryMapper->Read8Bit(0xFFFB)) << std::endl;
+    //std::cout << std::format("FFFD: {0:x}", mMemoryMapper->Read8Bit(0xFFFC)) << std::endl;
+
+    DebugInit(ROM);
 
     std::cout << std::format("Initial PC: {0:x}", mRegisters.PC) << std::endl;
+}
+
+void CPU::DebugInit(const ROMData& ROM)
+{
+    if (ROM.Name.compare("nestest") == 0)
+    {
+        // nestest automation PC. Outputs final results in 0x02 and 0x03
+        mRegisters.PC = 0xC000;
+    }
 }
 
 void CPU::Run()
@@ -111,14 +125,18 @@ void CPU::Run()
 
         // Debug Remove me later.
         TotalCycles += CyclesUsed;
-        if (TotalCycles > 10)
-            break;
+        //if (TotalCycles > 1000)
+         //   break;
     }
 }
 
 uint8_t CPU::ExecuteNextInstruction()
 {
+    // Debug
+    auto InstructionPC = mRegisters.PC;
+
     const uint8_t PCData = mMemoryMapper->Read8Bit(mRegisters.PC);
+
     mRegisters.PC++;
 
     const uint8_t AAA = (PCData >> 5) & (0b111);
@@ -128,12 +146,11 @@ uint8_t CPU::ExecuteNextInstruction()
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
     auto OpCode = OpCodeDecoder::DecodeOpCode(AAA, BBB, CC);
 
+    std::cout << std::format("Executing Instruction: {0}, at {1:X}, with Addressing Mode {2}", OpCode.Name, InstructionPC, static_cast<int32_t>(OpCode.AddressMode)) << std::endl;
+
+    std::cout << std::format("Instruction: {0:X}", PCData) << std::endl;
+
     ExecuteInstruction(&OpCode);
-
-    // ??
-    mRegisters.PC++;
-
-    std::cout << std::format("Executed Instruction: {0}, at {1}, with Addressing Mode {2}", OpCode.Name, mRegisters.PC, static_cast<int32_t>(OpCode.AddressMode)) << std::endl;
 
     return OpCode.Cycles;
 }
@@ -144,18 +161,92 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
 
     switch (OpCode->Instruction)
     {
-
+        case EINSTRUCTION::ASL:
+            ASL(OpCode);
+            break;
+        case EINSTRUCTION::LSR:
+            LSR(OpCode);
+            break;
+        case EINSTRUCTION::ROL:
+            ROL(OpCode);
+            break;
+        case EINSTRUCTION::ROR:
+            ROR(OpCode);
+            break;
         case EINSTRUCTION::BRK:
             BRK();
             break;
+        case EINSTRUCTION::BMI:
+            BMI(OpCode);
+            break;
+        case EINSTRUCTION::BNE:
+            BNE(OpCode);
+            break;
+        case EINSTRUCTION::BPL:
+            BPL(OpCode);
+            break;
+        case EINSTRUCTION::BCC:
+            BCC(OpCode);
+            break;
+        case EINSTRUCTION::BCS:
+            BCS(OpCode);
+            break;
+        case EINSTRUCTION::BEQ:
+            BEQ(OpCode);
+            break;
+        case EINSTRUCTION::JMP:
+            JMP(OpCode);
+            break;
+        case EINSTRUCTION::JSR:
+            JSR();
+            break;
+        case EINSTRUCTION::RTS:
+            RTS();
+            break;
+        case EINSTRUCTION::CMP:
+            CMP(OpCode);
+            break;
+        case EINSTRUCTION::CPX:
+            CPX(OpCode);
+            break;
+        case EINSTRUCTION::CPY:
+            CPY(OpCode);
+            break;
+        case EINSTRUCTION::SEI:
+            SEI();
+            break;
+        case EINSTRUCTION::CLD:
+            CLD();
+            break;
         case EINSTRUCTION::CLC:
             CLC();
+            break;
+        case EINSTRUCTION::AND:
+            AND(OpCode);
             break;
         case EINSTRUCTION::ADC:
             ADC(OpCode);
             break;
         case EINSTRUCTION::SBC:
             SBC(OpCode);
+            break;
+        case EINSTRUCTION::DEC:
+            DEC(OpCode);
+            break;
+        case EINSTRUCTION::DEX:
+            DEX();
+            break;
+        case EINSTRUCTION::DEY:
+            DEY();
+            break;
+        case EINSTRUCTION::INC:
+            INC(OpCode);
+            break;
+        case EINSTRUCTION::INX:
+            INX();
+            break;
+        case EINSTRUCTION::INY:
+            INY();
             break;
         case EINSTRUCTION::LDA:
             LDA(OpCode);
@@ -169,14 +260,41 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::PHA:
             PHA();
             break;
+        case EINSTRUCTION::PHP:
+            PHP();
+            break;
         case EINSTRUCTION::PLA:
             PLA();
             break;
-        case EINSTRUCTION::JSR:
-            JSR();
+        case EINSTRUCTION::PLP:
+            PLP();
             break;
-        case EINSTRUCTION::RTS:
-            RTS();
+        case EINSTRUCTION::STA:
+            STA(OpCode);
+            break;
+        case EINSTRUCTION::STX:
+            STX(OpCode);
+            break;
+        case EINSTRUCTION::STY:
+            STY(OpCode);
+            break;
+        case EINSTRUCTION::TAX:
+            TAX();
+            break;
+        case EINSTRUCTION::TAY:
+            TAY();
+            break;
+        case EINSTRUCTION::TSX:
+            TSX();
+            break;
+        case EINSTRUCTION::TXS:
+            TXS();
+            break;
+        case EINSTRUCTION::TXA:
+            TXA();
+            break;
+        case EINSTRUCTION::TYA:
+            TYA();
             break;
         default:
         {
@@ -197,7 +315,507 @@ uint8_t CPU::PopStack()
     return mMemoryMapper->Read8Bit(mRegisters.S);
 }
 
+void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
+{
+    // Not sure how to implement these, so asserting to find use cases.
+    assert(AddressMode != EAddressingMode::Implicit);
+    assert(AddressMode != EAddressingMode::Immediate);
+
+    uint8_t OperandLowByte = 0;
+    uint8_t OperandHighByte = 0;
+
+    // Only used for...relative Addressing Mode.
+    int32_t RelativeOperand = 0;
+
+    uint16_t Address = 0;
+
+    switch (AddressMode)
+    {
+        // d,x
+        case EAddressingMode::XZeroPageIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            // Wraps around 0x00 -> 0xFF
+            OperandLowByte += mRegisters.X;
+
+            mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
+            break;
+        // d,y
+        case EAddressingMode::YZeroPageIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            // Wraps around 0x00 -> 0xFF
+            OperandLowByte += mRegisters.Y;
+
+            mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
+            break;
+        // a,x
+        case EAddressingMode::XAbsoluteIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address += mRegisters.X;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+        // a,y
+        case EAddressingMode::YAbsoluteIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address += mRegisters.Y;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+        // (d, x)
+        case EAddressingMode::XIndexedIndirect:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (OperandLowByte + mRegisters.X) % 0xFF;
+
+            OperandLowByte = mMemoryMapper->Read8Bit(Address);
+            Address++;
+            OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+        // (d), y
+        case EAddressingMode::YIndirectIndexed:
+            Address = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            OperandLowByte = mMemoryMapper->Read8Bit(Address);
+            Address++;
+            OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address += mRegisters.Y;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+        // No address operand, ex. RTS / CLC
+        case EAddressingMode::Implicit:
+            break;
+        // A
+        case EAddressingMode::Accumulator:
+            mRegisters.A = Value;
+            break;
+        // #i (Wiki called it #v for some unknown reason????)
+        case EAddressingMode::Immediate:
+            // What is immediate mode for writting?
+            break;
+        // d
+        case EAddressingMode::Zeropage:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
+            break;
+        // a
+        case EAddressingMode::Absolute:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+        // *+d (label??)
+        // Only used by branch instructions, so this *should* be unused.
+        case EAddressingMode::Relative:
+            RelativeOperand = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            if (RelativeOperand > 127)
+                RelativeOperand -= 256;
+
+            Address = mRegisters.PC + RelativeOperand;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+        // (a)
+        case EAddressingMode::Indirect:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            // 16 bit operand which points to another 16bit address which is the real target.
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            OperandLowByte = mMemoryMapper->Read8Bit(Address);
+            Address++;
+            OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            mMemoryMapper->Write8Bit(Address, Value);
+            break;
+    }
+}
+
+uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
+{
+    assert(AddressMode != EAddressingMode::Implicit);
+
+    uint8_t OperandLowByte = 0;
+    uint8_t OperandHighByte = 0;
+
+    // Only used for...relative Addressing Mode.
+    int32_t RelativeOperand = 0;
+
+    uint16_t Address = 0;
+
+    switch (AddressMode)
+    {
+        // d,x
+        case EAddressingMode::XZeroPageIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            // Wraps around 0x00 -> 0xFF
+            OperandLowByte += mRegisters.X;
+            Address = 0x00 + OperandLowByte;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // d,y
+        case EAddressingMode::YZeroPageIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            // Wraps around 0x00 -> 0xFF
+            OperandLowByte += mRegisters.Y;
+            Address = 0x00 + OperandLowByte;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // a,x
+        case EAddressingMode::XAbsoluteIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address += mRegisters.X;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // a,y
+        case EAddressingMode::YAbsoluteIndexed:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address += mRegisters.Y;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // (d, x)
+        case EAddressingMode::XIndexedIndirect:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (OperandLowByte + mRegisters.X) % 0xFF;
+
+            OperandLowByte = mMemoryMapper->Read8Bit(Address);
+            Address++;
+            OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // (d), y
+        case EAddressingMode::YIndirectIndexed:
+            Address = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            OperandLowByte = mMemoryMapper->Read8Bit(Address);
+            Address++;
+            OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address += mRegisters.Y;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // No address operand, ex. RTS / CLC
+        case EAddressingMode::Implicit:
+            // Should never be called.
+            break;
+            // A
+        case EAddressingMode::Accumulator:
+            return mRegisters.A;
+            break;
+            // #i (Wiki called it #v for some unknown reason????)
+        case EAddressingMode::Immediate:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            return OperandLowByte;
+            break;
+            // d
+        case EAddressingMode::Zeropage:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = 0x00 + OperandLowByte;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // a
+        case EAddressingMode::Absolute:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // *+d (label??), only used by jump commands directly
+        case EAddressingMode::Relative:
+            RelativeOperand = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            if (RelativeOperand > 127)
+                RelativeOperand -= 256;
+
+            Address = mRegisters.PC + RelativeOperand;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+            // (a)
+        case EAddressingMode::Indirect:
+            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            mRegisters.PC++;
+
+            // 16 bit operand which points to another 16bit address which is the real target.
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            OperandLowByte = mMemoryMapper->Read8Bit(Address);
+            Address++;
+            OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            return mMemoryMapper->Read8Bit(Address);
+            break;
+    }
+
+    // Should Never Happen TM
+    return 0;
+}
+
+void CPU::ASL(NESOpCode* OpCode)
+{
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
+
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    bool Carry = (Memory & 0b10000000) != 0;
+
+    Memory = Memory << 1;
+
+    if (Carry)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (Memory == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Memory & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
+}
+
+void CPU::LSR(NESOpCode* OpCode)
+{
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
+
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    bool Carry = (Memory & 0b00000001) != 0;
+
+    Memory = Memory >> 1;
+
+    if (Carry)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (Memory == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    // Since Bit 7 is always zero after RHS, this is always set to zero.
+    mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
+}
+
+void CPU::ROL(NESOpCode* OpCode)
+{
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
+
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    bool MemoryCarry = (Memory & 0b10000000) != 0;
+    bool CPUCarry = (mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0;
+
+    Memory = Memory << 1;
+
+    Memory &= static_cast<uint8_t>(CPUCarry);
+
+    if (MemoryCarry)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (Memory == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Memory & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
+}
+
+void CPU::ROR(NESOpCode* OpCode)
+{
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
+
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    bool MemoryCarry = (Memory & 0b00000001) != 0;
+    bool CPUCarry = (mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0;
+
+    Memory = Memory >> 1;
+
+    Memory &= (static_cast<uint8_t>(CPUCarry) << 7);
+
+    if (MemoryCarry)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (Memory == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Memory & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
+}
+
 void CPU::BNE(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::ZERO)) == 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC += JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
+void CPU::BPL(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::NEGATIVE)) == 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC += JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
+void CPU::BCC(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) == 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC += JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
+void CPU::BCS(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC += JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
+void CPU::BEQ(NESOpCode* OpCode)
 {
     uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
     mRegisters.PC += 1;
@@ -214,13 +832,30 @@ void CPU::BNE(NESOpCode* OpCode)
     }
 }
 
+void CPU::BMI(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::NEGATIVE)) != 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC += JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
 void CPU::BRK()
 {
-    uint16_t Bytes = mMemoryMapper->Read16Bit(mRegisters.PC);
+    // BRK Pushes the next instruction address bytes to stack, along with Status Flags.
     mRegisters.PC += 2;
 
-    uint8_t HighByte = (Bytes >> 8) & 0xFF;
-    uint8_t LowByte = Bytes & 0xFF;
+    uint8_t HighByte = (mRegisters.PC >> 8) & 0xFF;
+    uint8_t LowByte = mRegisters.PC & 0xFF;
 
     PushStack(HighByte);
     PushStack(LowByte);
@@ -235,24 +870,135 @@ void CPU::BRK()
     mRegisters.PC = 0xFFFE;
 }
 
+void CPU::JMP(const NESOpCode* OpCode)
+{
+    assert((OpCode->AddressMode == EAddressingMode::Absolute) || (OpCode->AddressMode == EAddressingMode::Indirect));
+
+    if (OpCode->AddressMode == EAddressingMode::Absolute)
+    {
+        mRegisters.PC = mMemoryMapper->Read16Bit(mRegisters.PC);
+    }
+    else if (OpCode->AddressMode == EAddressingMode::Indirect)
+    {
+        // Copy pasted from ReadMemory function since it doesn't return 16 bits.
+        uint8_t OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+        mRegisters.PC++;
+        uint8_t OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+        mRegisters.PC++;
+
+        // 16 bit operand which points to another 16bit address which is the real target.
+        uint16_t Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+        // In this step if the address ends in 0xFF it will read the wrong page.
+        // Will need to emulate this later.
+        OperandLowByte = mMemoryMapper->Read8Bit(Address);
+        Address++;
+        OperandHighByte = mMemoryMapper->Read8Bit(Address);
+
+        Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+        mRegisters.PC = Address;
+    }
+}
+
 void CPU::JSR()
 {
-    uint16_t Bytes = mMemoryMapper->Read16Bit(mRegisters.PC);
+    uint16_t SubroutineAddress = mMemoryMapper->Read16Bit(mRegisters.PC);
     mRegisters.PC += 1;
 
-    PushStack(static_cast<uint8_t>(mRegisters.PC >> 8));
-    PushStack(static_cast<uint8_t>(mRegisters.PC & 0b11111111));
+    PushStack(static_cast<uint8_t>((mRegisters.PC >> 8) & 0xFF));
+    PushStack(static_cast<uint8_t>(mRegisters.PC & 0xFF));
+
+    mRegisters.PC = SubroutineAddress;
 }
+
 void CPU::RTS()
 {
     uint8_t LowByte = PopStack();
     uint8_t HighByte = PopStack();
 
-    uint16_t JumpDistance = static_cast<uint16_t>(HighByte) << 8;
-    JumpDistance |= LowByte;
+    uint16_t ReturnAddress = static_cast<uint16_t>(HighByte) << 8;
+    ReturnAddress |= LowByte;
 
-    mRegisters.PC += JumpDistance;
+    mRegisters.PC = ReturnAddress;
     mRegisters.PC++;
+}
+
+void CPU::CMP(NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    uint8_t A = mRegisters.A - Memory;
+
+    if (A >= 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (A & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::CPX(const NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    uint8_t X = mRegisters.X - Memory;
+
+    if (X >= 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (X == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (X & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::CPY(const NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    uint8_t Y = mRegisters.Y - Memory;
+
+    if (Y >= 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    if (Y == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Y & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::SEI()
+{
+    // Should be delayed by one frame.
+    mRegisters.P |= static_cast<uint8_t>((EStatusFlags::INTERRUPT_DISABLE));
+}
+
+void CPU::CLD()
+{
+    mRegisters.P |= static_cast<uint8_t>((EStatusFlags::DECIMAL));
 }
 
 void CPU::CLC()
@@ -260,10 +1006,35 @@ void CPU::CLC()
     mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
 }
 
+void CPU::SEC()
+{
+    mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+}
+
+void CPU::SED()
+{
+    mRegisters.P |= static_cast<uint8_t>((EStatusFlags::DECIMAL));
+}
+
+void CPU::AND(const NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    mRegisters.A |= Memory;
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
 void CPU::ADC(const NESOpCode* OpCode)
 {
-    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
-    mRegisters.PC += 1;
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
     int32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
@@ -285,18 +1056,17 @@ void CPU::ADC(const NESOpCode* OpCode)
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (A & 0b01000000)
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
+    if (A & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.A = A;
 }
 
 void CPU::SBC(const NESOpCode* OpCode)
 {
-    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
-    mRegisters.PC += 1;
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
     int32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
@@ -322,65 +1092,176 @@ void CPU::SBC(const NESOpCode* OpCode)
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (A & 0b01000000)
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
+    if (A & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.A = A;
 }
 
-void CPU::LDA(const NESOpCode* OpCode)
+void CPU::DEC(const NESOpCode* OpCode)
 {
-    mRegisters.A = mMemoryMapper->Read8Bit(mRegisters.PC);
-    mRegisters.PC++;
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
 
-    if (mRegisters.A == 0)
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    Memory -= 1;
+
+    if (Memory== 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
 
-    if (mRegisters.A & 0b01000000)
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
+    if (Memory & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
 }
 
-void CPU::LDX(const NESOpCode* OpCode)
+void CPU::DEX()
 {
-    mRegisters.X = mMemoryMapper->Read8Bit(mRegisters.PC);
-    mRegisters.PC++;
+    mRegisters.X -= 1;
 
     if (mRegisters.X == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
 
-    if (mRegisters.X & 0b01000000)
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
+    if (mRegisters.X & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::LDY(const NESOpCode* OpCode)
+void CPU::DEY()
 {
-    mRegisters.Y = mMemoryMapper->Read8Bit(mRegisters.PC);
-    mRegisters.PC++;
+    mRegisters.Y -= 1;
 
     if (mRegisters.Y == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
 
-    if (mRegisters.Y & 0b01000000)
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
+    if (mRegisters.Y & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::INC(const NESOpCode* OpCode)
+{
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
+
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    Memory += 1;
+
+    if (Memory == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Memory & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
+}
+
+void CPU::INX()
+{
+    mRegisters.X += 1;
+
+    if (mRegisters.X == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.X & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::INY()
+{
+    mRegisters.Y += 1;
+
+    if (mRegisters.Y == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.Y & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::LDA(const NESOpCode* OpCode)
+{
+    mRegisters.A = ReadMemory(OpCode->AddressMode);
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::LDX(const NESOpCode* OpCode)
+{
+    mRegisters.X = ReadMemory(OpCode->AddressMode);
+
+    if (mRegisters.X == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.X & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::LDY(const NESOpCode* OpCode)
+{
+    mRegisters.Y = ReadMemory(OpCode->AddressMode);
+
+    if (mRegisters.Y == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.Y & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
 void CPU::PHA()
 {
     PushStack(mRegisters.A);
+}
+
+void CPU::PHP()
+{
+    auto CPUFlags = mRegisters.P;
+    CPUFlags |= static_cast<uint8_t>((EStatusFlags::BFlag));
+
+    PushStack(CPUFlags);
 }
 
 void CPU::PLA()
@@ -392,8 +1273,109 @@ void CPU::PLA()
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
 
-    if (mRegisters.A & 0b01000000)
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
+    if (mRegisters.A & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::PLP()
+{
+    // TODO: Interrupt Disable effect should be delayed by one instruction.
+    mRegisters.P = PopStack();
+}
+
+void CPU::STA(const NESOpCode* OpCode)
+{
+    WriteMemory(OpCode->AddressMode, mRegisters.A);
+}
+
+void CPU::STX(const NESOpCode* OpCode)
+{
+    WriteMemory(OpCode->AddressMode, mRegisters.X);
+}
+
+void CPU::STY(const NESOpCode* OpCode)
+{
+    WriteMemory(OpCode->AddressMode, mRegisters.Y);
+}
+
+void CPU::TAX()
+{
+    mRegisters.X = mRegisters.A;
+
+    if (mRegisters.X == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.X & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::TAY()
+{
+    mRegisters.Y = mRegisters.A;
+
+    if (mRegisters.Y == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.Y & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::TSX()
+{
+    mRegisters.X = mRegisters.S;
+
+    if (mRegisters.X == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.X & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::TXS()
+{
+    mRegisters.S = mRegisters.X;
+}
+
+void CPU::TXA()
+{
+    mRegisters.A = mRegisters.X;
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::TYA()
+{
+    mRegisters.A = mRegisters.Y;
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MemoryMapper.h"
+#include "OpCodeDecoder.h"
 
 #include <cstdint>
 #include <memory>
@@ -56,19 +57,65 @@ public :
 
 // Should probably move instructions to a different file, but this'll do for now.
 private:
+    // Automate setting data test roms expect for input-less running.
+    void DebugInit(const ROMData& ROM);
+
     void PushStack(uint8_t Value);
     uint8_t PopStack();
 
+    // Using the current PC, reads the current operand's addressing parameters and writes the given value to the address calculated.
+    // Increments PC as needed based on Address Mode.
+    void WriteMemory(EAddressingMode AddressMode, uint8_t Value);
+
+    // Using the current PC, reads the current operand's addressing parameters and returns the value from the address calculated.
+    // Increments PC as needed based on Address Mode.
+    uint8_t ReadMemory(EAddressingMode AddressMode);
+
+    void ASL(NESOpCode* OpCode);
+    void LSR(NESOpCode* OpCode);
+    void ROL(NESOpCode* OpCode);
+    void ROR(NESOpCode* OpCode);
     void BNE(NESOpCode* OpCode);
+    void BMI(NESOpCode* OpCode);
+    void BPL(NESOpCode* OpCode);
+    void BCC(NESOpCode* OpCode);
+    void BCS(NESOpCode* OpCode);
+    void BEQ(NESOpCode* OpCode);
     void BRK();
+    void JMP(const NESOpCode* OpCode);
     void JSR();
     void RTS();
+    void CMP(NESOpCode* OpCode);
+    void CPX(const NESOpCode* OpCode);
+    void CPY(const NESOpCode* OpCode);
     void CLC();
+    void CLD();
+    void SEC();
+    void SED();
+    void SEI();
+    void AND(const NESOpCode* OpCode);
     void ADC(const NESOpCode* OpCode);
     void SBC(const NESOpCode* OpCode);
+    void DEC(const NESOpCode* OpCode);
+    void DEX();
+    void DEY();
+    void INC(const NESOpCode* OpCode);
+    void INX();
+    void INY();
     void LDA(const NESOpCode* OpCode);
     void LDX(const NESOpCode* OpCode);
     void LDY(const NESOpCode* OpCode);
     void PHA();
+    void PHP();
     void PLA();
+    void PLP();
+    void STA(const NESOpCode* OpCode);
+    void STX(const NESOpCode* OpCode);
+    void STY(const NESOpCode* OpCode);
+    void TAX();
+    void TAY();
+    void TSX();
+    void TXS();
+    void TXA();
+    void TYA();
 };
