@@ -81,6 +81,8 @@ private:
     void BCC(NESOpCode* OpCode);
     void BCS(NESOpCode* OpCode);
     void BEQ(NESOpCode* OpCode);
+    void BVC(NESOpCode* OpCode);
+    void BVS(NESOpCode* OpCode);
     void BIT(NESOpCode* OpCode);
     void BRK();
     void JMP(const NESOpCode* OpCode);

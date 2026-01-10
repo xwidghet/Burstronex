@@ -13,23 +13,24 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     // PRG code starts at 0x8000 and goes to 0xFFFF
     // Seems like it should be always shifted to the end of the memory space, since the reset vector is at the very end of the address range.
 
-    // Not too sure why this is off by one, but this fixed getting the wrong initial PC.
-    mPrgRomLocation =  (0xFFFF - PrgRomMemory.size()) + 1;
-    std::memcpy(mMemory.data() + mPrgRomLocation, PrgRomMemory.data(), PrgRomMemory.size());
+    // Mapper 0, 16KB PRG ROM is mirrored from 0x8000-0xBFFF and 0xC000->0xFFFF
+    mPrgRomLocation =  0x8000;
+    std::memcpy(mMemory.data() + 0x8000, PrgRomMemory.data(), PrgRomMemory.size());
+    std::memcpy(mMemory.data() + 0xC000, PrgRomMemory.data(), PrgRomMemory.size());
 
     // Chr Memory requires a mapper to dynamically load information into 0x0000 -> 0x1FFF range during rendering.
     // Since it's only used for rendering, I can skip it for now.
     mChrRomLocation = 0x0000;
 }
 
-uint8_t MemoryMapper::Read8Bit(const int32_t Address)
+uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
 {
     // Todo:: Implement memory mapping, wraparound, address sanitization, etc.
     // Implement Little-indean -> Big-Indean. Either always execute it, or convert rom to x86 endianess.
     return mMemory[Address];
 }
 
-void MemoryMapper::Write8Bit(const int32_t Address, uint8_t Value)
+void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
 {
     // Cannot write to Program Read Only Memory (ROM)
     if (Address >= mPrgRomLocation)
@@ -38,7 +39,7 @@ void MemoryMapper::Write8Bit(const int32_t Address, uint8_t Value)
     mMemory[Address] = Value;
 }
 
-uint16_t MemoryMapper::Read16Bit(const int32_t Address)
+uint16_t MemoryMapper::Read16Bit(const uint32_t Address)
 {
     // Todo:: Implement memory mapping, wraparound, address sanitization, etc.
     // Implement Little-indean -> Big-Indean. Either always execute it, or convert rom to x86 endianess.
@@ -48,7 +49,7 @@ uint16_t MemoryMapper::Read16Bit(const int32_t Address)
     return uint16_t((High << 8) | Low);
 }
 
-void MemoryMapper::Write16Bit(const int32_t Address, uint16_t Value)
+void MemoryMapper::Write16Bit(const uint32_t Address, uint16_t Value)
 {
     // Cannot write to Program Read Only Memory (ROM)
     if (Address >= mPrgRomLocation)
@@ -62,7 +63,7 @@ void MemoryMapper::Write16Bit(const int32_t Address, uint16_t Value)
     mMemory[Address+1] = High;
 }
 
-int32_t MemoryMapper::Wrap8Bit(int32_t Address, EAddressingMode AddressingMode)
+uint32_t MemoryMapper::Wrap8Bit(uint32_t Address, EAddressingMode AddressingMode)
 {
     switch (AddressingMode)
     {
@@ -78,7 +79,7 @@ int32_t MemoryMapper::Wrap8Bit(int32_t Address, EAddressingMode AddressingMode)
     return Address;
 }
 
-int32_t MemoryMapper::Wrap16Bit(int32_t Address, EAddressingMode AddressingMode)
+uint32_t MemoryMapper::Wrap16Bit(uint32_t Address, EAddressingMode AddressingMode)
 {
     switch (AddressingMode)
     {

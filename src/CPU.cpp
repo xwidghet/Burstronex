@@ -65,11 +65,11 @@ void CPU::Init(const ROMData& ROM)
     mRegisters.PC = 0xFFFC;
 
     // INTERRUPT_DISABLE always 1 on power and reboot.
-    mRegisters.P |= static_cast<int32_t>(EStatusFlags::INTERRUPT_DISABLE);
+    mRegisters.P = 0x24;
 
     // 0x00 -> 0x03 = 0xFD, whatever that means. Maybe means I need to zero the stack at those offsets?
     // Pointer for 256-byte array whose location is hardcoded at page $01 ($0100-$01FF)
-    mRegisters.S = 0xFF;
+    mRegisters.S = 0xFD;
 
     // NES uses a decending stack from 0x1FF to 0x100;
     mStackLocation = 0x0100;
@@ -125,8 +125,8 @@ void CPU::Run()
 
         // Debug Remove me later.
         TotalCycles += CyclesUsed;
-        //if (TotalCycles > 1000)
-          //  break;
+        if (TotalCycles > 50)
+            break;
     }
 }
 
@@ -146,11 +146,11 @@ uint8_t CPU::ExecuteNextInstruction()
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
     auto OpCode = OpCodeDecoder::DecodeOpCode(AAA, BBB, CC);
 
-    std::cout << std::format("Executing Instruction: {0}, at {1:X}, with Addressing Mode {2}", OpCode.Name, InstructionPC, static_cast<int32_t>(OpCode.AddressMode)) << std::endl;
-
-    std::cout << std::format("Instruction: {0:X}", PCData) << std::endl;
+    std::cout << std::format("Executing Instruction: {0} ({3:X}), at {1:X}, with Addressing Mode {2}", OpCode.Name, InstructionPC, static_cast<int32_t>(OpCode.AddressMode), PCData) << std::endl;
 
     ExecuteInstruction(&OpCode);
+    std::cout << std::format("Registers: A:{0:X}, X:{1:X}, Y:{2:X}, PC:{3:X}, S:{4:X}, P:{5:X}",
+                             mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.PC, mRegisters.S, mRegisters.P) << std::endl;
 
     return OpCode.Cycles;
 }
@@ -193,6 +193,12 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
             break;
         case EINSTRUCTION::BEQ:
             BEQ(OpCode);
+            break;
+        case EINSTRUCTION::BVC:
+            BVC(OpCode);
+            break;
+        case EINSTRUCTION::BVS:
+            BVS(OpCode);
             break;
         case EINSTRUCTION::BIT:
             BIT(OpCode);
@@ -346,9 +352,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             mRegisters.PC++;
 
             // Wraps around 0x00 -> 0xFF
-            OperandLowByte += mRegisters.X;
+            Address = (int32_t(OperandLowByte) + mRegisters.X) & 0xFF;
 
-            mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
+            mMemoryMapper->Write8Bit(Address, Value);
             break;
         // d,y
         case EAddressingMode::YZeroPageIndexed:
@@ -356,9 +362,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             mRegisters.PC++;
 
             // Wraps around 0x00 -> 0xFF
-            OperandLowByte += mRegisters.Y;
+            Address = (int32_t(OperandLowByte) + mRegisters.Y) & 0xFF;
 
-            mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
+            mMemoryMapper->Write8Bit(Address, Value);
             break;
         // a,x
         case EAddressingMode::XAbsoluteIndexed:
@@ -389,13 +395,13 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
-            Address = (OperandLowByte + mRegisters.X) % 0xFF;
-
+            Address = (OperandLowByte + mRegisters.X) & 0xFF;
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
-            Address++;
+
+            Address = (OperandLowByte + mRegisters.X + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -405,10 +411,11 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             mRegisters.PC++;
 
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
-            Address++;
+
+            Address = (Address + 1) & 256;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
             Address += mRegisters.Y;
 
             mMemoryMapper->Write8Bit(Address, Value);
@@ -496,8 +503,7 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             mRegisters.PC++;
 
             // Wraps around 0x00 -> 0xFF
-            OperandLowByte += mRegisters.X;
-            Address = 0x00 + OperandLowByte;
+            Address = (int32_t(OperandLowByte) + mRegisters.X) & 0xFF;
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -507,8 +513,7 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             mRegisters.PC++;
 
             // Wraps around 0x00 -> 0xFF
-            OperandLowByte += mRegisters.Y;
-            Address = 0x00 + OperandLowByte;
+            Address = (int32_t(OperandLowByte) + mRegisters.Y) & 0xFF;
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -541,13 +546,13 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
-            Address = (OperandLowByte + mRegisters.X) % 0xFF;
-
+            Address = (OperandLowByte + mRegisters.X) & 0xFF;
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
-            Address++;
+
+            Address = (OperandLowByte + mRegisters.X + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -557,10 +562,11 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             mRegisters.PC++;
 
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
-            Address++;
+
+            Address = (Address + 1) & 256;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
             Address += mRegisters.Y;
 
             return mMemoryMapper->Read8Bit(Address);
@@ -596,8 +602,9 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
-
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | static_cast<uint16_t>(OperandLowByte);
+            std::cout << std::format("Absolute state of Address: {0:X}", Address) << std::endl;
+            std::cout << std::format("Value: {0:X}", mMemoryMapper->Read8Bit(Address)) << std::endl;
             return mMemoryMapper->Read8Bit(Address);
             break;
             // *+d (label??), only used by jump commands directly
@@ -830,6 +837,40 @@ void CPU::BEQ(NESOpCode* OpCode)
     mRegisters.PC += 1;
 
     if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::ZERO)) != 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC = mRegisters.PC + JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
+void CPU::BVC(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::OVERFLOW)) == 0)
+    {
+        int32_t JumpDistance = Memory;
+        if (JumpDistance > 127)
+            JumpDistance -= 256;
+
+        mRegisters.PC += JumpDistance;
+
+        OpCode->Cycles += 1;
+    }
+}
+
+void CPU::BVS(NESOpCode* OpCode)
+{
+    uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
+    mRegisters.PC += 1;
+
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::OVERFLOW)) != 0)
     {
         int32_t JumpDistance = Memory;
         if (JumpDistance > 127)

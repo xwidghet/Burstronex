@@ -14,17 +14,17 @@ class MemoryMapper {
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
 
-    uint8_t Read8Bit(const int32_t Address);
+    uint8_t Read8Bit(const uint32_t Address);
 
-    void Write8Bit(const int32_t Address, uint8_t Value);
+    void Write8Bit(const uint32_t Address, uint8_t Value);
 
-    uint16_t Read16Bit(const int32_t Address);
+    uint16_t Read16Bit(const uint32_t Address);
 
-    void Write16Bit(const int32_t Address, uint16_t Value);
+    void Write16Bit(const uint32_t Address, uint16_t Value);
 
-    int32_t Wrap8Bit(int32_t Address, const EAddressingMode AddressingMode);
+    uint32_t Wrap8Bit(uint32_t Address, const EAddressingMode AddressingMode);
 
-    int32_t Wrap16Bit(int32_t Address, const EAddressingMode AddressingMode);
+    uint32_t Wrap16Bit(uint32_t Address, const EAddressingMode AddressingMode);
 
     const uint16_t GetPrgRomLocation() const;
 
