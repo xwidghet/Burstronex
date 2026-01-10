@@ -12,6 +12,8 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
 
     // PRG code starts at 0x8000 and goes to 0xFFFF
     // Seems like it should be always shifted to the end of the memory space, since the reset vector is at the very end of the address range.
+
+    // Not too sure why this is off by one, but this fixed getting the wrong initial PC.
     mPrgRomLocation =  (0xFFFF - PrgRomMemory.size()) + 1;
     std::memcpy(mMemory.data() + mPrgRomLocation, PrgRomMemory.data(), PrgRomMemory.size());
 
@@ -29,6 +31,10 @@ uint8_t MemoryMapper::Read8Bit(const int32_t Address)
 
 void MemoryMapper::Write8Bit(const int32_t Address, uint8_t Value)
 {
+    // Cannot write to Program Read Only Memory (ROM)
+    if (Address >= mPrgRomLocation)
+        return;
+
     mMemory[Address] = Value;
 }
 
@@ -44,6 +50,10 @@ uint16_t MemoryMapper::Read16Bit(const int32_t Address)
 
 void MemoryMapper::Write16Bit(const int32_t Address, uint16_t Value)
 {
+    // Cannot write to Program Read Only Memory (ROM)
+    if (Address >= mPrgRomLocation)
+        return;
+
     uint16_t Low = Value & 0xFF;
     uint16_t High = (Value >> 8) & 0xFF;
 
