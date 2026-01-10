@@ -126,7 +126,7 @@ void CPU::Run()
         // Debug Remove me later.
         TotalCycles += CyclesUsed;
         //if (TotalCycles > 1000)
-         //   break;
+          //  break;
     }
 }
 
@@ -998,7 +998,7 @@ void CPU::SEI()
 
 void CPU::CLD()
 {
-    mRegisters.P |= static_cast<uint8_t>((EStatusFlags::DECIMAL));
+    mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::DECIMAL));
 }
 
 void CPU::CLC()
