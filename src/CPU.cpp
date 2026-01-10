@@ -194,6 +194,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::BEQ:
             BEQ(OpCode);
             break;
+        case EINSTRUCTION::BIT:
+            BIT(OpCode);
+            break;
         case EINSTRUCTION::JMP:
             JMP(OpCode);
             break;
@@ -241,6 +244,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
             break;
         case EINSTRUCTION::DEY:
             DEY();
+            break;
+        case EINSTRUCTION::EOR:
+            EOR(OpCode);
             break;
         case EINSTRUCTION::INC:
             INC(OpCode);
@@ -835,6 +841,28 @@ void CPU::BEQ(NESOpCode* OpCode)
     }
 }
 
+void CPU::BIT(NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    uint8_t A = mRegisters.A & Memory;
+
+    if (A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Memory & 0b01000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
+
+    if (Memory & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
 void CPU::BMI(NESOpCode* OpCode)
 {
     uint8_t Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
@@ -1027,7 +1055,7 @@ void CPU::SED()
 void CPU::AND(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
-    mRegisters.A |= Memory;
+    mRegisters.A &= Memory;
 
     if (mRegisters.A == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
@@ -1046,7 +1074,7 @@ void CPU::ADC(const NESOpCode* OpCode)
 
     int32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int32_t A = mRegisters.A + Memory + Carry;
+    int32_t A = int32_t(mRegisters.A) + Memory + Carry;
 
     if (const bool bOverflowed = (~(mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
@@ -1077,7 +1105,7 @@ void CPU::SBC(const NESOpCode* OpCode)
 
     int32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int32_t A = mRegisters.A - Memory - ~Carry;
+    int32_t A = int32_t(mRegisters.A) - Memory - ~Carry;
 
     if (const bool bOverflowed = ((mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
@@ -1143,6 +1171,23 @@ void CPU::DEX()
 void CPU::DEY()
 {
     mRegisters.Y -= 1;
+
+    if (mRegisters.Y == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.Y & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::EOR(const NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+
+    mRegisters.A ^= Memory;
 
     if (mRegisters.Y == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
