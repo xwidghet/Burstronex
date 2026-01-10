@@ -931,7 +931,7 @@ void CPU::CMP(NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
-    uint8_t A = mRegisters.A - Memory;
+    int32_t A = int32_t(mRegisters.A) - Memory;
 
     if (A >= 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
@@ -953,7 +953,7 @@ void CPU::CPX(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
-    uint8_t X = mRegisters.X - Memory;
+    int32_t X = int32_t(mRegisters.X) - Memory;
 
     if (X >= 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
@@ -975,7 +975,7 @@ void CPU::CPY(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
-    uint8_t Y = mRegisters.Y - Memory;
+    int32_t Y = int32_t(mRegisters.Y) - Memory;
 
     if (Y >= 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
