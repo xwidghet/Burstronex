@@ -90,6 +90,7 @@ private:
     void CPY(const NESOpCode* OpCode);
     void CLC();
     void CLD();
+    void CLV();
     void SEC();
     void SED();
     void SEI();

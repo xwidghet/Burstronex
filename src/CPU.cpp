@@ -221,6 +221,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::CLC:
             CLC();
             break;
+        case EINSTRUCTION::CLV:
+            CLV();
+            break;
         case EINSTRUCTION::AND:
             AND(OpCode);
             break;
@@ -1006,6 +1009,11 @@ void CPU::CLC()
     mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
 }
 
+void CPU::CLV()
+{
+    mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
+}
+
 void CPU::SEC()
 {
     mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
@@ -1040,28 +1048,27 @@ void CPU::ADC(const NESOpCode* OpCode)
 
     int32_t A = mRegisters.A + Memory + Carry;
 
-    if (A > 255)
-    {
-        A = 0;
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    }
-
-    if (A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (const bool bOverflowed = (mRegisters.A ^ A) & (A ^ Memory) & 0x80)
+    if (const bool bOverflowed = (~(mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (A & 0b10000000)
+    if (A > 0xFF)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    mRegisters.A = uint8_t(A);
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-
-    mRegisters.A = A;
 }
 
 void CPU::SBC(const NESOpCode* OpCode)
@@ -1072,32 +1079,27 @@ void CPU::SBC(const NESOpCode* OpCode)
 
     int32_t A = mRegisters.A - Memory - ~Carry;
 
-    if (A < 0)
-    {
-        A = 255;
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-    }
-    else
-    {
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    }
-
-    if (A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (const bool bOverflowed = (mRegisters.A ^ A) & (A ^ ~Memory) & 0x80)
+    if (const bool bOverflowed = ((mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (A & 0b10000000)
+    if (A >= 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    mRegisters.A = uint8_t(A);
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-
-    mRegisters.A = A;
 }
 
 void CPU::DEC(const NESOpCode* OpCode)
