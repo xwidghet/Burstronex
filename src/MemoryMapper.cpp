@@ -8,26 +8,37 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     // Supposedly I should make this a 2D array...I'll do that later when I learn why
     mMemory = std::vector<uint8_t>(65536);
 
+    mChrRomMemory = ChrRomMemory;
+    mPrgRomMemory = PrgRomMemory;
+
     // What to do with trainer memory, do we need to increase size to load it?
 
-    // PRG code starts at 0x8000 and goes to 0xFFFF
-    // Seems like it should be always shifted to the end of the memory space, since the reset vector is at the very end of the address range.
-
-    // Mapper 0, 16KB PRG ROM is mirrored from 0x8000-0xBFFF and 0xC000->0xFFFF
     mPrgRomLocation =  0x8000;
-    std::memcpy(mMemory.data() + 0x8000, PrgRomMemory.data(), PrgRomMemory.size());
-    std::memcpy(mMemory.data() + 0xC000, PrgRomMemory.data(), PrgRomMemory.size());
+    std::memcpy(mMemory.data() + mPrgRomLocation, PrgRomMemory.data(), PrgRomMemory.size());
 
     // Chr Memory requires a mapper to dynamically load information into 0x0000 -> 0x1FFF range during rendering.
     // Since it's only used for rendering, I can skip it for now.
     mChrRomLocation = 0x0000;
 }
 
+uint32_t MemoryMapper::MapAddress(uint32_t Address)
+{
+    // Internal RAM, 0x0000 - 0x07FF, Mirrored up to 0x1FFF
+    if (Address <= 0x1FFF)
+        Address = 0x0000 + (Address - 0x0000) % (0x07FF + 1);
+    // NES PPU Registers, 0x2000 - 0x2007, Mirrored up to 0x3FFF
+    else if (Address <= 0x3FFF)
+        Address = 0x2000 + (Address - 0x2000) % ((0x2007 - 0x2000) + 1);
+    // Prg ROM Area, with iNES 2.0 ROMS it could be as small as 8KB X 4 Mirrors, but generally 16KB X 2 Mirrors or 32KB No Mirrors
+    else if (Address >= 0x8000)
+        Address = 0x8000 + (Address - 0x8000) % (mPrgRomMemory.size());
+
+    return Address;
+}
+
 uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
 {
-    // Todo:: Implement memory mapping, wraparound, address sanitization, etc.
-    // Implement Little-indean -> Big-Indean. Either always execute it, or convert rom to x86 endianess.
-    return mMemory[Address];
+    return mMemory[MapAddress(Address)];
 }
 
 void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
@@ -36,15 +47,13 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
     if (Address >= mPrgRomLocation)
         return;
 
-    mMemory[Address] = Value;
+    mMemory[MapAddress(Address)] = Value;
 }
 
 uint16_t MemoryMapper::Read16Bit(const uint32_t Address)
 {
-    // Todo:: Implement memory mapping, wraparound, address sanitization, etc.
-    // Implement Little-indean -> Big-Indean. Either always execute it, or convert rom to x86 endianess.
-    uint16_t Low = mMemory[Address];
-    uint16_t High = mMemory[Address+1];
+    uint16_t Low = mMemory[MapAddress(Address)];
+    uint16_t High = mMemory[MapAddress(Address+1)];
 
     return uint16_t((High << 8) | Low);
 }
@@ -59,8 +68,8 @@ void MemoryMapper::Write16Bit(const uint32_t Address, uint16_t Value)
     uint16_t High = (Value >> 8) & 0xFF;
 
     // What happens when it overflows?
-    mMemory[Address] = Low;
-    mMemory[Address+1] = High;
+    mMemory[MapAddress(Address)] = Low;
+    mMemory[MapAddress(Address+1)] = High;
 }
 
 uint32_t MemoryMapper::Wrap8Bit(uint32_t Address, EAddressingMode AddressingMode)

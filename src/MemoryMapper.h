@@ -11,8 +11,13 @@ class MemoryMapper {
     uint16_t mPrgRomLocation;
     uint16_t mChrRomLocation;
 
+    std::vector<char> mChrRomMemory;
+    std::vector<char> mPrgRomMemory;
+
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
+
+    uint32_t MapAddress(uint32_t Address);
 
     uint8_t Read8Bit(const uint32_t Address);
 
