@@ -50,5 +50,17 @@ void PPU::Init(const std::vector<char>* ChrRomMemory)
 
 void PPU::ExecuteCycle()
 {
+	uint8_t PPUMASK = mRAM->Read8Bit(PPUMASK_ADDRESS);
+	const bool bIsBackgroundRenderingEnabled = (PPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_BACKGROUND_RENDERING)) != 0;
+	const bool bIsSpriteRenderingEnabled = (PPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_SPRITE_RENDERING)) != 0;
+
+	// Should take effect 4 dots or more after write, otherwise a crash may occur.
+	bool bRenderBackdrop = (bIsBackgroundRenderingEnabled || bIsSpriteRenderingEnabled);
+
+	ExecuteRendering(bRenderBackdrop);
+}
+
+void PPU::ExecuteRendering(const bool bIsRenderingBackdrop)
+{
 
 }

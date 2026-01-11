@@ -5,14 +5,19 @@
 
 class MemoryMapper;
 
-static const uint16_t PPUCTRL = 0x2000;
-static const uint16_t PPUMASK = 0x2001;
-static const uint16_t PPUSTATUS = 0x2002;
-static const uint16_t OAMADDR = 0x2003;
-static const uint16_t PPU_SCROLL_ADDR_LATCH = 0x2004;
-static const uint16_t PPUSCROLL = 0x2005;
-static const uint16_t PPUADDR = 0x2006;
-static const uint16_t PPUDATA = 0x2007;
+static const uint16_t PPUCTRL_ADDRESS = 0x2000;
+static const uint16_t PPUMASK_ADDRESS = 0x2001;
+static const uint16_t PPUSTATUS_ADDRESS = 0x2002;
+static const uint16_t OAMADDR_ADDRESS = 0x2003;
+static const uint16_t PPU_SCROLL_ADDR_LATCH_ADDRESS = 0x2004;
+static const uint16_t PPUSCROLL_ADDRESS = 0x2005;
+static const uint16_t PPUADDR_ADDRESS = 0x2006;
+static const uint16_t PPUDATA_ADDRESS = 0x2007;
+
+// Occurs at dot one of scanline 241
+// Triggers EPPUCTRL's VLANK_NMI_ENABLE flag.
+// Enabling while PPUSTATUS's VBLANK flag is enabled immediately triggers NMI.
+static const uint16_t VBLANK_SCANLINE = 241;
 
 enum class EAddressMap {
 	Pattern_Table_0,
@@ -27,6 +32,87 @@ enum class EAddressMap {
 	Attribute_Table_3,
 	Pallete_Ram_Indexes,
 	Pallete_Ram_Indexes_Mirror
+};
+
+// Writes to this register are ignored until first pre-render scanline
+enum class EPPUCTRL {
+	// 2 bit combination -  0 = 0x2000, 1 = 0x2400, 2 = 0x2800, 3 = 0x2C00
+	// Most significant bits for scroll coordiantes (9 bits). The other 8 bits come from PPUSCROLL.
+	// Both these two bits and PPUSCROLL must be written at the same time.
+	// Ex. bit 0 adds 256 to X, and bit 1 adds 240 to Y.
+	BASE_NAMETABLE_ADDRESS_0 = 1 << 0,
+	BASE_NAMETABLE_ADDRESS_1 = 1 << 1,
+
+	// Per CPU Read/Write of PPUDATA
+	// 0: Add 1 going across, 1: add 32, going down
+	VRAM_ADDRESS_INCREMENT = 1 << 2,
+
+	// 0: 0x0000, 1: 0x1000, ignored in 8x16 mode
+	SPRITE_PATTERN_ADDRESS = 1 << 3,
+	
+	// 0: 0x0000, 1: 0x1000
+	BACKGROUND_PATTERN_ADDRESS = 1 << 4,
+
+	// 0: 8x8, 1: 8x16. Reference: PPU OAM#Byte 1
+	SPRITE_SIZE = 1 << 5,
+
+	// 0: Read Backdrop from EXT Pins, 1: Output color on EXT Pins.
+	PPU_MASTER_SLAVE_SELECT = 1 << 6,
+
+	// 0: off, 1: on
+	VBLANK_NMI_ENABLE = 1 << 7
+};
+
+// Writes to this register are ignored until first pre-render scanline
+// Commonly 0x00 outside of gameplay, and 0x1E during gameplay
+enum class EPPUMASK {
+	// 0: Normal Color, 1: Greyscale.
+	// Gray Scale is computed via ANDing the color with 0x30.
+	GREYSCALE = 1 << 0,
+
+	// 0: Hide, 1: Show
+	BACKGROUND_LEFTMOST_8PX = 1 << 1,
+
+	// 0: Hide, 1: Show
+	SPRITES_LEFTMOST_8PX = 1 << 2,
+
+	ENABLE_BACKGROUND_RENDERING = 1 << 3,
+	ENABLE_SPRITE_RENDERING = 1 << 4,
+
+	// Green on PAL/Dendy
+	EMPHASIZE_RED = 1 << 5,
+
+	// Red on PAL/Dendy
+	EMPHASIZE_GREEN = 1 << 6,
+
+	EMPHASIZE_BLUE = 1 << 7
+};
+
+// PPUSTATUS Register
+const uint8_t OPEN_BUS_MASK = 0b00011111;
+
+enum class EPPUSTATUS {
+	OPEN_BUS_0 = 1 << 0,
+	OPEN_BUS_1 = 1 << 1,
+	OPEN_BUS_2 = 1 << 2,
+	OPEN_BUS_3 = 1 << 3,
+	OPEN_BUS_4 = 1 << 4,
+
+	// Triggered when 9 Sprites are attempted to be rendered on 1 scanline, instead of the 8 intended.
+	// Used by games for timing when more than one timing source is wanted.
+	SPRITE_OVERFLOW_FLAG = 1 << 5,
+
+	// Set to 1 when collision is detected between OAM Sprite 0 and background, where two non-transparent pixels overlap (two pattern bits are %00, whatever that means).
+	// Stays set until dot 1 of the pre-render scanline.
+	// Cannot detect at X=255
+	// Used for timing by games by placing sprite 0 and waiting for this flag.
+	// ^ Games using this generally crash when not implemented.
+	SPRITE_0_HIT_FLAG = 1 << 6,
+
+	// Cleared on read, unreliable
+	// Set at scanline 241, dot 1
+	// Cleared on read, and cleared at dot 1 of pre-render scanline
+	VBLANK_FLAG = 1 << 7
 };
 
 class PPU {
@@ -89,4 +175,6 @@ public:
 	void Init(const std::vector<char>* ChrRomMemory);
 
 	void ExecuteCycle();
+
+	void ExecuteRendering(const bool bIsRenderingBackdrop);
 };
