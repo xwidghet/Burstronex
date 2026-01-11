@@ -12,6 +12,7 @@ target_sources(GNES
         src/main.cpp
         src/GNES.cpp
         src/CPU.cpp
+        src/PPU.cpp
         src/MemoryMapper.cpp
         src/OpCodeDecoder.cpp
 	src/RomLoader.cpp)

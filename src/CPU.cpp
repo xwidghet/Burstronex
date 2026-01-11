@@ -104,30 +104,9 @@ void CPU::DebugInit(const ROMData& ROM)
     }
 }
 
-void CPU::Run()
+double CPU::GetCycleTime() const
 {
-    int64_t TotalCycles = 0;
-    while(true)
-    {
-        auto TimeAtInstruction = std::chrono::steady_clock::now();
-
-        auto CyclesUsed = ExecuteNextInstruction();
-
-        auto ExecutionTime = mCycleTime * CyclesUsed;
-        auto TimePassed = std::chrono::steady_clock::now() - TimeAtInstruction;
-
-        double DeltaTime = std::chrono::duration<double>(TimePassed).count();
-        while(DeltaTime < ExecutionTime)
-        {
-            TimePassed = std::chrono::steady_clock::now() - TimeAtInstruction;
-            DeltaTime = std::chrono::duration<double>(TimePassed).count();
-        }
-
-        // Debug Remove me later.
-        TotalCycles += CyclesUsed;
-        if (TotalCycles > 50)
-            break;
-    }
+    return mCycleTime;
 }
 
 uint8_t CPU::ExecuteNextInstruction()

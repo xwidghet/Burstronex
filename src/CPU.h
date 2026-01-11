@@ -47,16 +47,16 @@ public :
     // Initialize the CPU to begin running at the given Program Code location.
     void Init(const ROMData& ROM);
 
-    void Run();
-
     // Executes the instruction at the current PC and increments the PC based on the instruction's data and execution etc.
     // Returns cycles used.
     uint8_t ExecuteNextInstruction();
 
-    void ExecuteInstruction(NESOpCode* OpCode);
+    double GetCycleTime() const;
 
 // Should probably move instructions to a different file, but this'll do for now.
 private:
+    void ExecuteInstruction(NESOpCode* OpCode);
+
     // Automate setting data test roms expect for input-less running.
     void DebugInit(const ROMData& ROM);
 
