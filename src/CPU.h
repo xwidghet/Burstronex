@@ -1,6 +1,5 @@
 #pragma once
 
-#include "MemoryMapper.h"
 #include "OpCodeDecoder.h"
 
 #include <cstdint>
@@ -9,6 +8,7 @@
 struct NESOpCode;
 struct ROMData;
 enum class ECPU_TIMING;
+class MemoryMapper;
 
 class CPU {
     // Are NES CPU Registers zero initialized??
@@ -39,13 +39,13 @@ class CPU {
     double mClockFrequency = 0.f;
     double mCycleTime = 0.f;
 
-    std::unique_ptr<MemoryMapper> mMemoryMapper;
+    MemoryMapper* mMemoryMapper;
 
 public :
     CPU();
 
     // Initialize the CPU to begin running at the given Program Code location.
-    void Init(const ROMData& ROM);
+    void Init(const ROMData& ROM, MemoryMapper* MemoryMapper);
 
     // Executes the instruction at the current PC and increments the PC based on the instruction's data and execution etc.
     // Returns cycles used.

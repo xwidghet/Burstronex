@@ -1,4 +1,5 @@
 #include "CPU.h"
+#include "MemoryMapper.h"
 #include "OpCodeDecoder.h"
 #include "RomParameters.h"
 
@@ -53,7 +54,7 @@ CPU::CPU()
 {
 }
 
-void CPU::Init(const ROMData& ROM)
+void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper)
 {
     mMasterClockFrequency = MasterClockFrequencies[static_cast<int>(ROM.CPUTimingMode)];
     mClockDivisor = ClockDivisors[static_cast<int>(ROM.CPUTimingMode)];
@@ -74,7 +75,6 @@ void CPU::Init(const ROMData& ROM)
     // NES uses a decending stack from 0x1FF to 0x100;
     mStackLocation = 0x0100;
 
-    // Need to read ROM to determine memory size and PC location.
     // 6502 can only address up to 64KB due to 16bit address bus.
     // Zero Page: 0x0000 - 0x00FF
     // Stack Page: 0x0100 - 0x01FF
@@ -82,7 +82,7 @@ void CPU::Init(const ROMData& ROM)
     // non-maskable interrupt handler 0xFFFA - 0xFFFB
     // Power on/Reset 0xFFFC - 0xFFFD
     // BRK/Interrupt Request handler 0xFFFE - 0xFFFF
-    mMemoryMapper = std::make_unique<MemoryMapper>(ROM.ChrRomMemory, ROM.PrgRomMemory);
+    mMemoryMapper = MemoryMapper;
 
     // PC Code is read from 0xFFFC and 0xFFFD (reset vector)
     mRegisters.PC = mMemoryMapper->Read16Bit(0xFFFC);
