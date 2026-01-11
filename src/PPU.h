@@ -14,6 +14,21 @@ static const uint16_t PPUSCROLL = 0x2005;
 static const uint16_t PPUADDR = 0x2006;
 static const uint16_t PPUDATA = 0x2007;
 
+enum class EAddressMap {
+	Pattern_Table_0,
+	Pattern_Table_1,
+	Name_Table_0,
+	Attribute_Table_0,
+	Name_Table_1,
+	Attribute_Table_1,
+	Name_Table_2,
+	Attribute_Table_2,
+	Name_Table_3,
+	Attribute_Table_3,
+	Pallete_Ram_Indexes,
+	Pallete_Ram_Indexes_Mirror
+};
+
 class PPU {
 	std::vector<char> mMemory;
 
@@ -56,6 +71,9 @@ class PPU {
 	// 
 	// Byte 3 - X Pos (Left side of sprite). 0xF9 - 0xFF are beyond the right edge of the screen. Sprites further left then 0 are not visible.
 	std::array<char, 256> mObjectAttributeMemory;
+
+	// All 12 memory regions stored (Address Begin, size)
+	std::array<std::pair<uint16_t, uint16_t>, 13> mMemoryMap;
 
 	// CPU Address space, the PPU's Registers exist in the memory range 0x2000 to 0x2007, mirrored up to 0x3FFF.
 	// 

@@ -18,13 +18,31 @@ PPU::PPU(MemoryMapper* RAM)
 	mPalleteMemory = {};
 	mObjectAttributeMemory = {};
 
+	mMemoryMap = std::array<std::pair<uint16_t, uint16_t>, 13>{{
+		{0x0000, 0x1000},
+		{0x1000, 0x1000},
+		{0x2000, 0x03C0},
+		{0x23C0, 0x0040},
+		{0x2400, 0x03C0},
+		{0x27C0, 0x0040},
+		{0x2800, 0x03C0},
+		{0x2BC0, 0x0040},
+		{0x2C00, 0x03C0},
+		{0x2FC0, 0x0040},
+		{0x3000, 0x3EFF},
+		{0x3F00, 0x0020},
+		{0x3F20, 0x00E0}
+	}};
+
 	mRAM = RAM;
+
+	mChrRomMemory = nullptr;
 }
 
 void PPU::Init(const std::vector<char>* ChrRomMemory)
 {
-	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	mChrRomMemory = ChrRomMemory;
+	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	
 	std::memcpy(mMemory.data(), mChrRomMemory->data(), 8192);
 
