@@ -42,6 +42,12 @@ PPU::PPU(MemoryMapper* RAM)
 
 void PPU::Init(const std::vector<char>* ChrRomMemory)
 {
+	// What are the real initial values of these?
+	mRegisters.v = 0;
+	mRegisters.t = 0;
+	mRegisters.x = 0;
+	mRegisters.w = 0;
+
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	

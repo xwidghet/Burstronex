@@ -35,7 +35,10 @@ enum class EAddressMap {
 	Pallete_Ram_Indexes_Mirror
 };
 
+const uint8_t BASE_NAMETABLE_ADDRESS_MASK = 0b00000011;
+
 // Writes to this register are ignored until first pre-render scanline
+// Ram Address 0x2000 (Write)
 enum class EPPUCTRL {
 	// 2 bit combination -  0 = 0x2000, 1 = 0x2400, 2 = 0x2800, 3 = 0x2C00
 	// Most significant bits for scroll coordiantes (9 bits). The other 8 bits come from PPUSCROLL.
@@ -66,6 +69,7 @@ enum class EPPUCTRL {
 
 // Writes to this register are ignored until first pre-render scanline
 // Commonly 0x00 outside of gameplay, and 0x1E during gameplay
+// Ram Address 0x2001 (Write)
 enum class EPPUMASK {
 	// 0: Normal Color, 1: Greyscale.
 	// Gray Scale is computed via ANDing the color with 0x30.
@@ -92,6 +96,8 @@ enum class EPPUMASK {
 // PPUSTATUS Register
 const uint8_t OPEN_BUS_MASK = 0b00011111;
 
+// Ram Address 0x2002 (Read)
+// Reading this address also clears the PPU's w register.
 enum class EPPUSTATUS {
 	OPEN_BUS_0 = 1 << 0,
 	OPEN_BUS_1 = 1 << 1,
@@ -116,7 +122,80 @@ enum class EPPUSTATUS {
 	VBLANK_FLAG = 1 << 7
 };
 
+// Ram Address 0x2003 (Write)
+enum class EOAMADDR {
+	// Address at the OAM the CPU wants to access. Most games write 0x00 and use OAMDMA
+	// Set to 0 during ticks 257-320 (sprite tile loading interval) of the pre-render and visible scanlines.
+	// If rendering is enabled mid-scanline then this value likely doesn't correctly point to the correct address, misaligning all reads.
+	ADDRESS = 0b11111111
+};
+
+// Ram Address 0x2004 (Read/Write)
+enum class EOAMDATA {
+	// Writes increment OAMADDR, reads do not.
+	// Reads during vertical or forced blanking return the OAM at the current OAMADDR(?)
+	ADDRESS = 0b11111111
+};
+
+// Ram Address 0x2005 (Write)
+enum class EPPUSCROLL {
+	// First Write
+	// X scroll Byte 7-0, (bit 8 in PPUCTRL bit 0)
+	//
+	// Second Write
+	// Y scroll Byte 7-0, (bit 8 in PPUCTRL bit 1)
+	//
+	// Controls which pixels of the nametable selected through PPUCTRL is at the top left corner of the rendered screen.
+	// Typically written during VBLANK, but sometimes mid-render for split-screen.
+	// Vertical scroll changes only take effect next frame.
+	// Scroll components (X, Y) are 9 bits total when combined with the nametable bits in PPUCTRL.
+	SCROLLBITS = 0b11111111
+};
+
+// Ram Address 0x2006 (Write)
+enum class EPPUADDR {
+	// First Write
+	// VRAM Address bits 0-7
+	VRAM_ADDRESS_Write_1 = 0b11111111,
+	// Second Write
+	// VRAM Address bits 8-13?
+	VRAM_ADDRESS_Write_2 = 0b00111111,
+};
+
+// Ram Address 0x2007 (Read/Write)
+enum class EPPUDATA {
+	VRAM_DATA = 0b11111111
+};
+
+// Ram Address 0x4014 (Write)
+enum class EOAMDMA {
+	// Source page (High Byte of source address)
+	SPRITE_DMA = 0b11111111
+};
+
+
 class PPU {
+	struct PPUREGISTERS {
+		// During Rendering, used for scroll position.
+		// Outside Rendering, used for VRAM address.
+		// 15 bits
+		uint16_t v;
+
+		// During Rendering, starting coarse x-scroll for next scanline and starting y scroll for the screen.
+		// Outside Rendering, holds the scroll or VRAM addres before transfering to v register.
+		// 15 bits
+		uint16_t t;
+
+		// Fine x-position of the current scroll, used along side v during rendering.
+		// 3 bits
+		uint8_t x;
+
+		// Toggles on each write to PPUSCROLL or PPUADDR, indicating if it is the first or second write.
+		// Clears on reads of PPUSTATUS. Refered to as 'write latch' or 'write toggle'.
+		// 1 bit
+		bool w;
+	} mRegisters;
+
 	std::vector<char> mMemory;
 
 	// 4 Palletes, first 16 are background tiles, while last 16 are sprites.
