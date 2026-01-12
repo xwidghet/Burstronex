@@ -295,6 +295,19 @@ class PPU {
 		bool w;
 	} mRegisters;
 
+	// Registers memory mapped to CPU RAM
+	uint8_t mPPUCTRL;
+	uint8_t mPPUMASK;
+	uint8_t mPPUSTATUS;
+	uint8_t mOAMADDR;
+	uint8_t mPPU_SCROLL_ADDR_LATCH;
+	uint8_t mPPUSCROLL;
+	uint8_t mPPUADDR;
+
+	// Writes to this address adds 1 or 32 to register v depending on VRAM incremement bit set in PPUCTRL_ADDRESS
+	// During rendering (pre-render lines and visibible lines 0-239), triggers both coarse X increment and Y increment (with wrapping).
+	static const uint16_t PPUDATA_ADDRESS = 0x2007;
+
 	std::vector<char> mMemory;
 
 	// 4 Palletes, first 16 are background tiles, while last 16 are sprites.
@@ -343,6 +356,16 @@ class PPU {
 	uint16_t mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
 	uint16_t mCurrentDot = 0;
 
+	// Toggled every frame regardless of if rendering is enabled.
+	bool mbIsEvenFrame = true;
+
+	bool mbVBlankFlag = false;
+	bool mbNMIOutputFlag = false;
+
+	bool mbOldNMIRequestFlag = false;
+
+	bool mbPostFirstPreRenderScanline = false;
+
 	// CPU Address space, the PPU's Registers exist in the memory range 0x2000 to 0x2007, mirrored up to 0x3FFF.
 	// 
 	// PPU ignores writes (always 00?) for registers 0x2000, 0x2001, 0x2005, and 0x2006) 
@@ -359,4 +382,6 @@ public:
 	void ExecuteCycle();
 
 	void ExecuteRendering(const bool bIsRenderingEnabled);
+
+	bool ReadNMIOutput();
 };

@@ -48,27 +48,119 @@ void PPU::Init(const std::vector<char>* ChrRomMemory)
 	mRegisters.x = 0;
 	mRegisters.w = 0;
 
+	mPPUCTRL = 0;
+	mPPUMASK = 0;
+	mPPUSTATUS = 0;
+	mOAMADDR = 0;
+	mPPU_SCROLL_ADDR_LATCH = 0;
+	mPPUSCROLL = 0;
+	mPPUADDR = 0;
+
 	mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
 	mCurrentDot = 0;
+
+	mbVBlankFlag = false;
+	mbOldNMIRequestFlag = false;
+
+	mbPostFirstPreRenderScanline = false;
 
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	
 	std::memcpy(mMemory.data(), mChrRomMemory->data(), 8192);
-
 }
 
 void PPU::ExecuteCycle()
 {
-	uint8_t PPUMASK = mRAM->Read8Bit(PPUMASK_ADDRESS);
+	// Wasteful to do all these reads, but I feel like it will make it nicer to program
+	mPPUCTRL = mRAM->Read8Bit(PPUCTRL_ADDRESS);
+	mPPUMASK = mRAM->Read8Bit(PPUMASK_ADDRESS);
+	mPPUSTATUS = mRAM->Read8Bit(PPUSTATUS_ADDRESS);
+	mOAMADDR = mRAM->Read8Bit(OAMADDR_ADDRESS);
+	mPPU_SCROLL_ADDR_LATCH = mRAM->Read8Bit(PPU_SCROLL_ADDR_LATCH_ADDRESS);
+	mPPUSCROLL = mRAM->Read8Bit(PPUSCROLL_ADDRESS);
+	mPPUADDR = mRAM->Read8Bit(PPUADDR_ADDRESS);
+
+	if (mbPostFirstPreRenderScanline == false)
+	{
+		if (mCurrentScanline == 0)
+		{
+			mbPostFirstPreRenderScanline = true;
+		}
+		else
+		{
+			mPPUCTRL = 0;
+		}
+	}
+
+	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
+	if (mbVBlankFlag && bShouldTriggerNMI && mbOldNMIRequestFlag == false)
+	{
+		// When does this go false?
+		mbNMIOutputFlag = true;
+	}
+	mbOldNMIRequestFlag = bShouldTriggerNMI;
 
 	// Should take effect 4 dots or more after write, otherwise a crash may occur.
-	bool bIsRenderingEnabled = (PPUMASK & PPUMASK_RENDERING_MASK) != 0;
+	bool bIsRenderingEnabled = (mPPUMASK & PPUMASK_RENDERING_MASK) != 0;
 
-	ExecuteRendering(bIsRenderingEnabled);
+	bool bIsVBLANK = mCurrentScanline >= VBLANK_SCANLINE_RANGE.first && mCurrentScanline < PPU_PRE_RENDER_SCANLINE;
+
+	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
+	{
+		mbVBlankFlag = true;
+
+		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
+		mRAM->Write8Bit(PPUSTATUS_ADDRESS, mPPUSTATUS);
+	}
+	if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
+	{
+		mbVBlankFlag = false;
+
+		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
+		mRAM->Write8Bit(PPUSTATUS_ADDRESS, mPPUSTATUS);
+	}
+
+	if (bIsVBLANK == false)
+	{
+		ExecuteRendering(bIsRenderingEnabled);
+	}
+
+	uint16_t LastFrameCycle = ENDING_FETCH_PHASE_CYCLES.second;
+	bool bIsLastScanline = mCurrentScanline == PPU_PRE_RENDER_SCANLINE;
+
+	// One cycle is skipped for odd frames.
+	if (bIsRenderingEnabled && !mbIsEvenFrame && bIsLastScanline)
+	{
+		LastFrameCycle -= 1;
+	}
+
+	mCurrentDot += 1;
+	if (mCurrentDot > LastFrameCycle)
+	{
+		mCurrentDot = 0;
+		mCurrentScanline += 1;
+
+		if (mCurrentScanline > PPU_PRE_RENDER_SCANLINE)
+		{
+			mCurrentScanline = 0;
+			mbIsEvenFrame = !mbIsEvenFrame;
+		}
+	}
 }
 
 void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 {
 
+}
+
+bool PPU::ReadNMIOutput()
+{
+	bool bIsNMIEnabled = mbNMIOutputFlag;
+	if (mbNMIOutputFlag && mbVBlankFlag)
+	{
+		mbNMIOutputFlag = false;
+	}
+
+	return bIsNMIEnabled;
 }

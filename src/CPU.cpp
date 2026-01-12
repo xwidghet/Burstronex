@@ -1,7 +1,9 @@
 #include "CPU.h"
+
 #include "MemoryMapper.h"
 #include "OpCodeDecoder.h"
 #include "RomParameters.h"
+#include "PPU.h"
 
 #include <array>
 #include <cassert>
@@ -54,7 +56,7 @@ CPU::CPU()
 {
 }
 
-void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper)
+void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper, PPU* PPU)
 {
     mMasterClockFrequency = MasterClockFrequencies[static_cast<int>(ROM.CPUTimingMode)];
     mClockDivisor = ClockDivisors[static_cast<int>(ROM.CPUTimingMode)];
@@ -63,7 +65,7 @@ void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper)
     mCycleTime = 1.0 / mClockFrequency;
 
     // Supposedly this is always 0xFFFC on power and reboot
-    mRegisters.PC = 0xFFFC;
+    mRegisters.PC = INITIAL_PC;
 
     // INTERRUPT_DISABLE always 1 on power and reboot.
     mRegisters.P = 0x24;
@@ -84,8 +86,10 @@ void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper)
     // BRK/Interrupt Request handler 0xFFFE - 0xFFFF
     mMemoryMapper = MemoryMapper;
 
+    mPPU = PPU;
+
     // PC Code is read from 0xFFFC and 0xFFFD (reset vector)
-    mRegisters.PC = mMemoryMapper->Read16Bit(0xFFFC);
+    mRegisters.PC = mMemoryMapper->Read16Bit(INITIAL_PC);
 
     //std::cout << std::format("FFFC: {0:x}", mMemoryMapper->Read8Bit(0xFFFB)) << std::endl;
     //std::cout << std::format("FFFD: {0:x}", mMemoryMapper->Read8Bit(0xFFFC)) << std::endl;
@@ -111,6 +115,18 @@ double CPU::GetCycleTime() const
 
 uint8_t CPU::ExecuteNextInstruction()
 {
+    // Interrupts
+    if (mPPU->ReadNMIOutput())
+    {
+        TriggerInterrupt();
+
+        // NMI Handler
+        // Finishes last instruction, then jumps to this address immediately
+        // Since the PPU will tick three times after the CPU finishes the last instruction
+        // this should be triggered.
+        mRegisters.PC = mMemoryMapper->Read16Bit(NMI_HANDLER_ADDRESS);
+    }
+
     // Debug
     auto InstructionPC = mRegisters.PC;
 
@@ -620,6 +636,26 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
     // Should Never Happen TM
     return 0;
+}
+
+void CPU::TriggerInterrupt()
+{
+    uint8_t HighByte = (mRegisters.PC >> 8) & 0xFF;
+    uint8_t LowByte = mRegisters.PC & 0xFF;
+
+    PushStack(HighByte);
+    PushStack(LowByte);
+
+    // Store Status Flags
+    uint8_t CPUFLAGS = mRegisters.P;
+
+    // Only clear on the pushed flags?
+    CPUFLAGS &= ~static_cast<uint8_t>(EStatusFlags::BFlag);
+
+    PushStack(mRegisters.P);
+
+    // Only set outside of stack
+    mRegisters.P |= static_cast<uint8_t>(EStatusFlags::INTERRUPT_DISABLE);
 }
 
 void CPU::ASL(NESOpCode* OpCode)

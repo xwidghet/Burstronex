@@ -9,6 +9,12 @@ struct NESOpCode;
 struct ROMData;
 enum class ECPU_TIMING;
 class MemoryMapper;
+class PPU;
+
+// 0xFFFA - 0xFFFB
+static const uint16_t NMI_HANDLER_ADDRESS = 0xFFFA;
+
+static const uint16_t INITIAL_PC = 0xFFFC;
 
 class CPU {
     // Are NES CPU Registers zero initialized??
@@ -41,11 +47,14 @@ class CPU {
 
     MemoryMapper* mMemoryMapper;
 
+    // Needed for reading the NMI Pin, could refactor this later with like...a pin manager?
+    PPU* mPPU;
+
 public :
     CPU();
 
     // Initialize the CPU to begin running at the given Program Code location.
-    void Init(const ROMData& ROM, MemoryMapper* MemoryMapper);
+    void Init(const ROMData& ROM, MemoryMapper* MemoryMapper, PPU* PPU);
 
     // Executes the instruction at the current PC and increments the PC based on the instruction's data and execution etc.
     // Returns cycles used.
@@ -56,6 +65,8 @@ public :
 // Should probably move instructions to a different file, but this'll do for now.
 private:
     void ExecuteInstruction(NESOpCode* OpCode);
+
+    void TriggerInterrupt();
 
     // Automate setting data test roms expect for input-less running.
     void DebugInit(const ROMData& ROM);

@@ -14,11 +14,11 @@ void GNES::Run(const std::string& RomPath)
 
     mRAM = std::make_unique<MemoryMapper>(ROM.ChrRomMemory, ROM.PrgRomMemory);
 
-    mCPU = std::make_unique<CPU>();
-    mCPU->Init(ROM, &*mRAM);
-
     mPPU = std::make_unique<PPU>(&*mRAM);
     mPPU->Init(&ROM.ChrRomMemory);
+
+    mCPU = std::make_unique<CPU>();
+    mCPU->Init(ROM, &*mRAM, &*mPPU);
 
     int64_t TotalCycles = 0;
     while (true)
@@ -44,7 +44,7 @@ void GNES::Run(const std::string& RomPath)
 
         // Debug Remove me later.
         TotalCycles += CyclesUsed;
-        if (TotalCycles > 50)
-            break;
+       // if (TotalCycles > 40000)
+        //    break;
     }
 }
