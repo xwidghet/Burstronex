@@ -3,6 +3,7 @@
 #include "MemoryMapper.h"
 
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include <format>
 
