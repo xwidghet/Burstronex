@@ -163,6 +163,9 @@ enum class EPPUCTRL {
 	VBLANK_NMI_ENABLE = 1 << 7
 };
 
+// Background or Sprite Rendering enabled.
+const uint8_t PPUMASK_RENDERING_MASK = 0b11000;
+
 // Writes to this register are ignored until first pre-render scanline
 // Commonly 0x00 outside of gameplay, and 0x1E during gameplay
 // Ram Address 0x2001 (Write)
@@ -355,5 +358,5 @@ public:
 
 	void ExecuteCycle();
 
-	void ExecuteRendering(const bool bIsRenderingBackdrop);
+	void ExecuteRendering(const bool bIsRenderingEnabled);
 };
