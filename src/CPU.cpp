@@ -1303,12 +1303,12 @@ void CPU::EOR(const NESOpCode* OpCode)
 
     mRegisters.A ^= Memory;
 
-    if (mRegisters.Y == 0)
+    if (mRegisters.A == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
 
-    if (mRegisters.Y & 0b10000000)
+    if (mRegisters.A & 0b10000000)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
@@ -1443,7 +1443,13 @@ void CPU::PLA()
 void CPU::PLP()
 {
     // TODO: Interrupt Disable effect should be delayed by one instruction.
-    mRegisters.P = PopStack();
+    uint8_t CPUSTATUS = PopStack();
+
+    // BFlag and ONEFLAG are ignored (Does this mean old state is kept?)
+    CPUSTATUS &= ~static_cast<uint8_t>(EStatusFlags::BFlag);
+    CPUSTATUS &= ~static_cast<uint8_t>(EStatusFlags::ONEFLAG);
+
+    mRegisters.P = CPUSTATUS;
 }
 
 void CPU::STA(const NESOpCode* OpCode)
