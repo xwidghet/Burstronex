@@ -357,6 +357,10 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
     assert(AddressMode != EAddressingMode::Implicit);
     assert(AddressMode != EAddressingMode::Immediate);
 
+    // Used for XIndexedIndirect which needs to retain the original read.
+    // Should refactor the rest to be consistent.
+    uint8_t Memory = 0;
+
     uint8_t OperandLowByte = 0;
     uint8_t OperandHighByte = 0;
 
@@ -413,13 +417,13 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             break;
         // (d, x)
         case EAddressingMode::XIndexedIndirect:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
+            Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
-            Address = (OperandLowByte + mRegisters.X) & 0xFF;
+            Address = (Memory + mRegisters.X) & 0xFF;
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (OperandLowByte + mRegisters.X + 1) & 0xFF;
+            Address = (Memory + mRegisters.X + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
@@ -433,7 +437,7 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
 
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (Address + 1) & 256;
+            Address = (Address + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
@@ -588,7 +592,7 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (Address + 1) & 256;
+            Address = (Address + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
