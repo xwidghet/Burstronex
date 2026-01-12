@@ -1001,16 +1001,24 @@ void CPU::JMP(const NESOpCode* OpCode)
         // Copy pasted from ReadMemory function since it doesn't return 16 bits.
         uint8_t OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
         mRegisters.PC++;
+
         uint8_t OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
         mRegisters.PC++;
 
         // 16 bit operand which points to another 16bit address which is the real target.
         uint16_t Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
 
-        // In this step if the address ends in 0xFF it will read the wrong page.
-        // Will need to emulate this later.
         OperandLowByte = mMemoryMapper->Read8Bit(Address);
         Address++;
+
+        // CPU Bug: If the address crosses a page, it still reads from the previous page
+        //          Ex. First Byte Address 0x03FF
+        //              Second Byte Address 0x0300 (Not 0x0400)
+        if ((Address & 0xFF) == 0)
+        {
+            Address -= 0x100;
+        }
+
         OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
         Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
@@ -1196,7 +1204,7 @@ void CPU::ADC(const NESOpCode* OpCode)
 
     bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int32_t A = int32_t(mRegisters.A) + Memory + Carry;
+    uint32_t A = uint32_t(mRegisters.A) + Memory + Carry;
 
     if (const bool bOverflowed = (~(mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
@@ -1227,9 +1235,9 @@ void CPU::SBC(const NESOpCode* OpCode)
 
     bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int32_t A = int32_t(mRegisters.A)  + ~Memory + Carry;
+    uint32_t A = uint32_t(mRegisters.A)  + ~Memory + Carry;
 
-    if (const bool bOverflowed = ((mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
+    if (const bool bOverflowed = (~(mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
