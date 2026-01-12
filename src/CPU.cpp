@@ -1186,7 +1186,7 @@ void CPU::ADC(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
-    int32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
+    bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
     int32_t A = int32_t(mRegisters.A) + Memory + Carry;
 
@@ -1217,9 +1217,9 @@ void CPU::SBC(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
-    int32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
+    bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int32_t A = int32_t(mRegisters.A) - Memory - ~Carry;
+    int32_t A = int32_t(mRegisters.A)  + ~Memory + Carry;
 
     if (const bool bOverflowed = ((mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
