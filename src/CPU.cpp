@@ -748,7 +748,7 @@ void CPU::ROL(NESOpCode* OpCode)
 
     Memory = Memory << 1;
 
-    Memory &= static_cast<uint8_t>(CPUCarry);
+    Memory |= static_cast<uint8_t>(CPUCarry);
 
     if (MemoryCarry)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
@@ -780,7 +780,7 @@ void CPU::ROR(NESOpCode* OpCode)
 
     Memory = Memory >> 1;
 
-    Memory &= (static_cast<uint8_t>(CPUCarry) << 7);
+    Memory |= (static_cast<uint8_t>(CPUCarry) << 7);
 
     if (MemoryCarry)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
