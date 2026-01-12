@@ -13,12 +13,47 @@ static const uint16_t OAMADDR_ADDRESS = 0x2003;
 static const uint16_t PPU_SCROLL_ADDR_LATCH_ADDRESS = 0x2004;
 static const uint16_t PPUSCROLL_ADDRESS = 0x2005;
 static const uint16_t PPUADDR_ADDRESS = 0x2006;
+
+// Writes to this address adds 1 or 32 to register v depending on VRAM incremement bit set in PPUCTRL_ADDRESS
+// During rendering (pre-render lines and visibible lines 0-239), triggers both coarse X increment and Y increment (with wrapping).
 static const uint16_t PPUDATA_ADDRESS = 0x2007;
 
 // Occurs at dot one of scanline 241
 // Triggers EPPUCTRL's VLANK_NMI_ENABLE flag.
 // Enabling while PPUSTATUS's VBLANK flag is enabled immediately triggers NMI.
 static const uint16_t VBLANK_SCANLINE = 241;
+
+// If Rendering is enabled
+static const uint16_t INCREMENT_V_SCANLINE_DOT = 256;
+
+// If Rendering is enabled, copies all horizontal position bits from register t to register v.
+static const uint16_t COPY_T_TO_V_HPOS_SCANLINE_DOT = 257;
+
+// If Rendering is enabled,
+// Shortly after VBLANK and the horizontal bits have been copied from t to v at dot 257,
+// PPU repeatedly copies vertical bits from t to v during dots 280 to 304, completing full initialization of v from t.
+static const std::pair<uint16_t, uint16_t> COPY_T_TO_V_VPOS_SCANLINE_DOT_RANGE = {280, 304};
+
+// If Rendering is enabled,
+// Increments the horizontal position in v every 8 dots until dot 256 of the next scanline.
+// Across the scanline the coarse X scroll coordiante is incremented repeatedly, wrapping to the next nametable.
+static const std::pair<uint16_t, uint16_t> HORIZONTAL_POS_INCREMENT_DOT_RANGE = {328, 256};
+
+// SCROLLING
+// two fine offsets specify the part of an 8x8 tile each pixel falls on.
+// two coarse offsets specify which tiles.
+
+// High 5 bits of X and Y scroll settings are sent to PPUSCROLL_ADDRESS, combined with 2 nametable select bits in PPUCTRL_ADDRESS,
+// make the 12 bitaddress for the next tile to be fetched within the nametable address space 0x2000-0x2FFF.
+// If set before end of VBLANK, the 12 bit address is loaded into register v when needed to fetch the tile for the top left pixel to render.
+
+// Low 3 bits of X sent to PPUSCROLL_ADDRESS (First write) controls the fine pixel offset within the 8x8 tile.
+// These bits go into the x register, which selects one of the 8 pixels coming out of a set of shift registers.
+// This value does not change during rendering, only the first PPUSCROLL_ADDRESS write.
+
+// Low 3 bits of Y sent to PPUSCROLL_ADDRESS (Second write) controls the vertical offset within the 8x8 tile.
+// The low 3 bits goes into the high 3 bits of the v register.
+// During rendering the 3 bits in the v register count the lines until the course Y memory address needs to be incremented (and wrapped if needed)
 
 enum class EAddressMap {
 	Pattern_Table_0,
