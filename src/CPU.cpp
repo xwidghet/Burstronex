@@ -119,16 +119,23 @@ uint8_t CPU::ExecuteNextInstruction()
     // This flag's behavior should be delayed by one frame somehow
     if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::INTERRUPT_DISABLE)) == 0)
     {
-        if (mPPU->ReadNMIOutput())
-        {
-            TriggerInterrupt();
+        // Other Interrupts (IRQs)
+    }
 
-            // NMI Handler
-            // Finishes last instruction, then jumps to this address immediately
-            // Since the PPU will tick three times after the CPU finishes the last instruction
-            // this should be triggered.
-            mRegisters.PC = mMemoryMapper->Read16Bit(NMI_HANDLER_ADDRESS);
-        }
+    // Non-Maskable Interrupts cannot be ignored by the CPU
+    if (mPPU->ReadNMIOutput())
+    {
+        TriggerInterrupt();
+
+        uint8_t PPUCTRL = mMemoryMapper->Read8Bit(PPUCTRL_ADDRESS);
+        PPUCTRL &= ~static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE);
+        mMemoryMapper->Write8Bit(PPUCTRL_ADDRESS, PPUCTRL);
+
+        // NMI Handler
+        // Finishes last instruction, then jumps to this address immediately
+        // Since the PPU will tick three times after the CPU finishes the last instruction
+        // this should be triggered.
+        mRegisters.PC = mMemoryMapper->Read16Bit(NMI_HANDLER_ADDRESS);
     }
 
     // Debug
@@ -656,13 +663,10 @@ void CPU::TriggerInterrupt()
     PushStack(HighByte);
     PushStack(LowByte);
 
-    // Store Status Flags
-    uint8_t CPUFLAGS = mRegisters.P;
-
-    // Only clear on the pushed flags?
+    // Both IRQ and NMI set this to zero before pushing, while BRK and PHP set 1.
+    auto CPUFLAGS = mRegisters.P;
     CPUFLAGS &= ~static_cast<uint8_t>(EStatusFlags::BFlag);
-
-    PushStack(mRegisters.P);
+    PushStack(CPUFLAGS);
 
     // Only set outside of stack
     mRegisters.P |= static_cast<uint8_t>(EStatusFlags::INTERRUPT_DISABLE);
@@ -1091,6 +1095,12 @@ void CPU::SEI()
 {
     // Should be delayed by one frame.
     mRegisters.P |= static_cast<uint8_t>((EStatusFlags::INTERRUPT_DISABLE));
+}
+
+void CPU::CLI()
+{
+    // Should be delayed by one frame.
+    mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::INTERRUPT_DISABLE));
 }
 
 void CPU::CLD()
