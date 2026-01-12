@@ -73,13 +73,13 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
 
         // Blue Block
         {  "STP", EINSTRUCTION::STP, EAddressingMode::Implicit, 0, 255},
-        {  "ASL", EINSTRUCTION::ASL, EAddressingMode::Zeropage, 2, 5},
-        {  "ASL", EINSTRUCTION::ASL, EAddressingMode::Accumulator, 1, 2},
-        {  "ASL", EINSTRUCTION::ASL, EAddressingMode::Absolute, 3, 6},
+        {  "ROL", EINSTRUCTION::ROL, EAddressingMode::Zeropage, 2, 5},
+        {  "ROL", EINSTRUCTION::ROL, EAddressingMode::Accumulator, 1, 2},
+        {  "ROL", EINSTRUCTION::ROL, EAddressingMode::Absolute, 3, 6},
         {  "STP", EINSTRUCTION::STP, EAddressingMode::Implicit, 0, 255},
-        {  "ASL", EINSTRUCTION::ASL, EAddressingMode::XZeroPageIndexed, 2, 6},
+        {  "ROL", EINSTRUCTION::ROL, EAddressingMode::XZeroPageIndexed, 2, 6},
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Implicit, 1, 2},
-        {  "ASL", EINSTRUCTION::ASL, EAddressingMode::XAbsoluteIndexed, 3, 7},
+        {  "ROL", EINSTRUCTION::ROL, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block (Unkown Sizes and Cycle Counts, supposedly Addressing Mode gives size)
         {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XIndexedIndirect, 3, 7},
@@ -100,7 +100,7 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "JMP", EINSTRUCTION::JMP, EAddressingMode::Absolute, 3, 3},
         {  "BVC", EINSTRUCTION::BVC, EAddressingMode::Relative, 2, 2},
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
-        {  "SEC", EINSTRUCTION::SEC, EAddressingMode::Implicit, 1, 2},
+        {  "CLI", EINSTRUCTION::CLI, EAddressingMode::Implicit, 1, 2},
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
 
         // Green Block
