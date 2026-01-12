@@ -233,6 +233,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::SEI:
             SEI();
             break;
+        case EINSTRUCTION::SED:
+            SED();
+            break;
         case EINSTRUCTION::CLD:
             CLD();
             break;
@@ -345,7 +348,7 @@ void CPU::PushStack(uint8_t Value)
 uint8_t CPU::PopStack()
 {
     mRegisters.S++;
-    return mMemoryMapper->Read8Bit(mRegisters.S);
+    return mMemoryMapper->Read8Bit(mStackLocation + static_cast<uint16_t>(mRegisters.S));
 }
 
 void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
@@ -1027,8 +1030,7 @@ void CPU::RTS()
     uint16_t ReturnAddress = static_cast<uint16_t>(HighByte) << 8;
     ReturnAddress |= LowByte;
 
-    mRegisters.PC = ReturnAddress;
-    mRegisters.PC++;
+    mRegisters.PC = ReturnAddress + 1;
 }
 
 void CPU::RTI()
