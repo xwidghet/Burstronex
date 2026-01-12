@@ -109,6 +109,7 @@ private:
     void SED();
     void SEI();
     void AND(const NESOpCode* OpCode);
+    void ORA(const NESOpCode* OpCode);
     void ADC(const NESOpCode* OpCode);
     void SBC(const NESOpCode* OpCode);
     void DEC(const NESOpCode* OpCode);

@@ -116,15 +116,19 @@ double CPU::GetCycleTime() const
 uint8_t CPU::ExecuteNextInstruction()
 {
     // Interrupts
-    if (mPPU->ReadNMIOutput())
+    // This flag's behavior should be delayed by one frame somehow
+    if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::INTERRUPT_DISABLE)) == 0)
     {
-        TriggerInterrupt();
+        if (mPPU->ReadNMIOutput())
+        {
+            TriggerInterrupt();
 
-        // NMI Handler
-        // Finishes last instruction, then jumps to this address immediately
-        // Since the PPU will tick three times after the CPU finishes the last instruction
-        // this should be triggered.
-        mRegisters.PC = mMemoryMapper->Read16Bit(NMI_HANDLER_ADDRESS);
+            // NMI Handler
+            // Finishes last instruction, then jumps to this address immediately
+            // Since the PPU will tick three times after the CPU finishes the last instruction
+            // this should be triggered.
+            mRegisters.PC = mMemoryMapper->Read16Bit(NMI_HANDLER_ADDRESS);
+        }
     }
 
     // Debug
@@ -231,8 +235,14 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::AND:
             AND(OpCode);
             break;
+        case EINSTRUCTION::ORA:
+            ORA(OpCode);
+            break;
         case EINSTRUCTION::ADC:
             ADC(OpCode);
+            break;
+        case EINSTRUCTION::SEC:
+            SEC();
             break;
         case EINSTRUCTION::SBC:
             SBC(OpCode);
@@ -1112,6 +1122,22 @@ void CPU::AND(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
     mRegisters.A &= Memory;
+
+    if (mRegisters.A == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.A & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::ORA(const NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    mRegisters.A |= Memory;
 
     if (mRegisters.A == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
