@@ -48,6 +48,8 @@ void PPU::Init(const std::vector<char>* ChrRomMemory)
 	mRegisters.x = 0;
 	mRegisters.w = 0;
 
+	mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
+
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	

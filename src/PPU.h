@@ -18,10 +18,29 @@ static const uint16_t PPUADDR_ADDRESS = 0x2006;
 // During rendering (pre-render lines and visibible lines 0-239), triggers both coarse X increment and Y increment (with wrapping).
 static const uint16_t PPUDATA_ADDRESS = 0x2007;
 
+static const uint16_t PPU_SCANLINE_COUNT = 262;
+
+// Cycles spent per scanline.
+// Each clock produces 1 pixel.
+static const uint16_t PPU_SCANLINE_CYCLES = 341;
+
+// CPU should not access PPU memory during this time unless rendering is turned off.
+static const std::pair<uint16_t, uint16_t> VISIBLE_SCANLINE_RANGE = {0, 239};
+
+// Idle scanline, nothing happens here.
+static const uint16_t POST_RENDER_SCANLINE = 240;
+
 // Occurs at dot one of scanline 241
 // Triggers EPPUCTRL's VLANK_NMI_ENABLE flag.
 // Enabling while PPUSTATUS's VBLANK flag is enabled immediately triggers NMI.
-static const uint16_t VBLANK_SCANLINE = 241;
+// PPU doesn't access memory during these scanlines, allowing the CPU to read PPU memory safely.
+static const std::pair<uint16_t, uint16_t> VBLANK_SCANLINE_RANGE = {241, 260};
+
+// -1 or 261, 261 is easier to implement.
+// Dendy has 51 post-render scanlines instead of 1.
+// PAL has 70 VBLANK scanlines instead of 20, but runs 3.2 PPU cycles per CPU cycle.
+// For odd frames the last cycle of this scanline is skipped by jumping from (339, 261) to (0,0)
+static const uint16_t PPU_PRE_RENDER_SCANLINE = 261;
 
 // If Rendering is enabled
 static const uint16_t INCREMENT_V_SCANLINE_DOT = 256;
@@ -38,6 +57,48 @@ static const std::pair<uint16_t, uint16_t> COPY_T_TO_V_VPOS_SCANLINE_DOT_RANGE =
 // Increments the horizontal position in v every 8 dots until dot 256 of the next scanline.
 // Across the scanline the coarse X scroll coordiante is incremented repeatedly, wrapping to the next nametable.
 static const std::pair<uint16_t, uint16_t> HORIZONTAL_POS_INCREMENT_DOT_RANGE = {328, 256};
+
+// Cycles spent each time a memory fetch is done.
+static const uint8_t MEMORY_FETCH_CYCLES = 2;
+
+static const uint16_t IDLE_PHASE_CYCLE = 0;
+
+// Fetches the following per tile, taking 2 cycles per read:
+// 1. Nametable byte
+// 2, Attribute table byte
+// 3. Pattern table tile low
+// 4. Pattern table tile high (8 bytes above pattern table tile low address)
+//
+// Data stored in internal latches, then fed to shift registers every 8 cycles.
+// Since it only fetches an attribute byte every 8 cycles, every 8 pixels has the same pallete attribute.
+// Shifters are reloaded every 8 cycles, starting at cycle 9.
+// Sprite 0 acts as if the image starts at cycle 2, and first pixel is output during cycle 4.
+//
+// During this time, Sprite Evaluation for the next scanline is taking place independently.
+static const std::pair<uint16_t, uint16_t> TILE_FETCH_PHASE_CYCLES = {1, 256};
+
+// Fetches the following per tile, taking 2 cycles per read, 4 for each of the 8 sprites:
+// 1. Garbage Nametable byte
+// 2, Garbage Attribute table byte
+// 3. Pattern table tile low
+// 4. Pattern table tile high (8 bytes above pattern table tile low address)
+//
+// If there are less than 8 sprites on the next scanline, dummy fetches to 0xFF occur for the empty sprite slots.
+// This data is discarded, and replaced with transparent values.
+static const std::pair<uint16_t, uint16_t> NEXT_SCANLINE_SPRITE_FETCH_PHASE_CYCLES = {257, 320};
+
+// Fetches the following per tile, for the next scanline's first to tiles, taking 2 cycles per read:
+// 1. Nametable byte
+// 2, Attribute table byte
+// 3. Pattern table tile low
+// 4. Pattern table tile high (8 bytes above pattern table tile low address)
+static const std::pair<uint16_t, uint16_t> NEXT_SCANLINE_FIRST_TWO_TILES_FETCH_PHASE_CYCLES = {321, 336};
+
+// Two bytes fetched, 2 PPU cycles each:
+// 1. Nametable byte
+// 2. Nametable byte
+// Purpose unknown but Mapper MMC5 uses these fetches for clocking a scanline counter.
+static const std::pair<uint16_t, uint16_t> ENDING_FETCH_PHASE_CYCLES = {337, 340};
 
 // SCROLLING
 // two fine offsets specify the part of an 8x8 tile each pixel falls on.
@@ -275,6 +336,9 @@ class PPU {
 
 	// All 12 memory regions stored (Address Begin, size)
 	std::array<std::pair<uint16_t, uint16_t>, 13> mMemoryMap;
+
+	uint16_t mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
+	uint16_t mCurrentDot = 0;
 
 	// CPU Address space, the PPU's Registers exist in the memory range 0x2000 to 0x2007, mirrored up to 0x3FFF.
 	// 
