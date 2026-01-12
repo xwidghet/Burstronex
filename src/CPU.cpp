@@ -218,6 +218,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::RTS:
             RTS();
             break;
+        case EINSTRUCTION::RTI:
+            RTI();
+            break;
         case EINSTRUCTION::CMP:
             CMP(OpCode);
             break;
@@ -322,6 +325,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
             break;
         case EINSTRUCTION::TYA:
             TYA();
+            break;
+        case EINSTRUCTION::NOP:
+            NOP();
             break;
         default:
         {
@@ -1025,6 +1031,20 @@ void CPU::RTS()
     mRegisters.PC++;
 }
 
+void CPU::RTI()
+{
+    // Interrupt Disable from this pop is NOT delayed.
+    mRegisters.P = PopStack();
+
+    uint8_t LowByte = PopStack();
+    uint8_t HighByte = PopStack();
+
+    uint16_t ReturnAddress = static_cast<uint16_t>(HighByte) << 8;
+    ReturnAddress |= LowByte;
+
+    mRegisters.PC = ReturnAddress;
+}
+
 void CPU::CMP(NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
@@ -1517,4 +1537,8 @@ void CPU::TYA()
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::NOP()
+{
 }

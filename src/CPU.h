@@ -99,6 +99,7 @@ private:
     void JMP(const NESOpCode* OpCode);
     void JSR();
     void RTS();
+    void RTI();
     void CMP(NESOpCode* OpCode);
     void CPX(const NESOpCode* OpCode);
     void CPY(const NESOpCode* OpCode);
@@ -136,4 +137,5 @@ private:
     void TXS();
     void TXA();
     void TYA();
+    void NOP();
 };
