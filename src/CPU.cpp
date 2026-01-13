@@ -332,6 +332,24 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::NOP:
             NOP();
             break;
+        case EINSTRUCTION::ALR:
+            ALR(OpCode);
+            break;
+        case EINSTRUCTION::ANC:
+            ANC(OpCode);
+            break;
+        case EINSTRUCTION::ARR:
+            ARR(OpCode);
+            break;
+        case EINSTRUCTION::AXS:
+            AXS(OpCode);
+            break;
+        case EINSTRUCTION::LAX:
+            LAX(OpCode);
+            break;
+        case EINSTRUCTION::SAX:
+            SAX(OpCode);
+            break;
         default:
         {
             std::cout << std::format("Unimplemented OpCode {0}", OpCode->Name) << std::endl;
@@ -378,6 +396,8 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
 
             // Wraps around 0x00 -> 0xFF
             Address = (int32_t(OperandLowByte) + mRegisters.X) & 0xFF;
+
+            std::cout << std::format("Read XZeroPageIndexed Address: {0:04X}", Address) << std::endl;
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -464,6 +484,8 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
+            std::cout << std::format("Write Zeropage Address: {0:04X}", Address) << std::endl;
+
             mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
             break;
         // a
@@ -474,6 +496,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             mRegisters.PC++;
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+
+            std::cout << std::format("Write Absolute Address: {0:X}, {1:02X}", Address,
+            mMemoryMapper->Read8Bit(Address)) << std::endl;
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -536,6 +561,8 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
             // Wraps around 0x00 -> 0xFF
             Address = (int32_t(OperandLowByte) + mRegisters.X) & 0xFF;
+
+            std::cout << std::format("Read XZeroPageIndexed Address: {0:04X}", Address) << std::endl;
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -629,6 +656,7 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
             Address = 0x00 + OperandLowByte;
 
+            std::cout << std::format("Read Zeropage Address: {0:04X}", Address) << std::endl;
             return mMemoryMapper->Read8Bit(Address);
             break;
             // a
@@ -639,8 +667,8 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             mRegisters.PC++;
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | static_cast<uint16_t>(OperandLowByte);
-            std::cout << std::format("Absolute state of Address: {0:X}", Address) << std::endl;
-            std::cout << std::format("Value: {0:X}", mMemoryMapper->Read8Bit(Address)) << std::endl;
+            std::cout << std::format("Read Absolute Address: {0:X}, {1:02X}", Address,
+                mMemoryMapper->Read8Bit(Address)) << std::endl;
             return mMemoryMapper->Read8Bit(Address);
             break;
             // *+d (label??), only used by jump commands directly
@@ -1572,4 +1600,108 @@ void CPU::TYA()
 
 void CPU::NOP()
 {
+}
+
+void CPU::ALR(NESOpCode* OpCode)
+{
+    OpCode->AddressMode = EAddressingMode::Immediate;
+    AND(OpCode);
+
+    OpCode->AddressMode = EAddressingMode::Accumulator;
+    LSR(OpCode);
+}
+
+void CPU::ANC(NESOpCode* OpCode)
+{
+    OpCode->AddressMode = EAddressingMode::Immediate;
+    AND(OpCode);
+
+    if (mRegisters.P & static_cast<uint8_t>((EStatusFlags::NEGATIVE)))
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+}
+
+void CPU::ARR(NESOpCode* OpCode)
+{
+    OpCode->AddressMode = EAddressingMode::Immediate;
+    AND(OpCode);
+
+    // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
+    auto TargetPC = mRegisters.PC;
+
+    // ROR Copy, with modifications
+    OpCode->AddressMode = EAddressingMode::Accumulator;
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    bool MemoryCarry = (Memory & 0b00000001) != 0;
+    bool CPUCarry = (mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0;
+
+    Memory = Memory >> 1;
+
+    Memory |= (static_cast<uint8_t>(CPUCarry) << 7);
+
+    bool bBit5 = Memory & 0b00100000;
+    bool bBit6 = Memory & 0b01000000;
+
+    // Carry is bit 6? Or should this be the original bit 6?
+    if (bBit6)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    // Register V (Overflow)
+    if (bBit6 ^ bBit5)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
+
+    if (Memory == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (Memory & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+
+    mRegisters.PC = TargetPC;
+    WriteMemory(OpCode->AddressMode, Memory);
+}
+
+void CPU::AXS(NESOpCode* OpCode)
+{
+    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    mRegisters.X &= mRegisters.A;
+
+    // AXS doesn't borrow, and doesn't write Overflow
+    int32_t X = int32_t(mRegisters.X) + ~Memory;
+
+    if (X >= 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+
+    mRegisters.X = uint8_t(X);
+
+    if (mRegisters.X == 0)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+
+    if (mRegisters.X & 0b10000000)
+        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    else
+        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+}
+
+void CPU::LAX(const NESOpCode* OpCode)
+{
+    LDA(OpCode);
+    TAX();
+}
+
+void CPU::SAX(const NESOpCode* OpCode)
+{
+    WriteMemory(OpCode->AddressMode, mRegisters.A & mRegisters.X);
 }

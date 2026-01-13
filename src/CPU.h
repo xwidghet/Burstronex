@@ -138,4 +138,10 @@ private:
     void TXA();
     void TYA();
     void NOP();
+    void ALR(NESOpCode* OpCode);
+    void ANC(NESOpCode* OpCode);
+    void ARR(NESOpCode* OpCode);
+    void AXS(NESOpCode* OpCode);
+    void LAX(const NESOpCode* OpCode);
+    void SAX(const NESOpCode* OpCode);
 };
