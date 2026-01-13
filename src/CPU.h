@@ -144,7 +144,7 @@ private:
     void TXS();
     void TXA();
     void TYA();
-    void NOP();
+    void NOP(NESOpCode* OpCode);
     void ALR(NESOpCode* OpCode);
     void ANC(NESOpCode* OpCode);
     void ARR(NESOpCode* OpCode);

@@ -1,5 +1,8 @@
 #include "OpCodeDecoder.h"
 
+#include <iostream>
+#include <format>
+
 // How many braces could a wood chuck chuck if a wood chuck could chuck wood.
 // Cycle counts are the constant cost, branches add one cycle, crossing memory pages adds one cycle.
 // Sizes are Instruction + Operands,
@@ -10,13 +13,13 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
     {{
         // Red Block
         {  "BRK", EINSTRUCTION::BRK, EAddressingMode::Implicit, 2, 7},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 2, 3},
         {  "PHP", EINSTRUCTION::PHP, EAddressingMode::Implicit, 1, 3},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Absolute, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Absolute, 3, 4},
         {  "BPL", EINSTRUCTION::BPL, EAddressingMode::Relative, 2, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 2, 4},
         {  "CLC", EINSTRUCTION::CLC, EAddressingMode::Implicit, 1, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 3, 4},
 
         // Green Block
         {  "ORA", EINSTRUCTION::ORA, EAddressingMode::XIndexedIndirect, 2, 6},
@@ -57,9 +60,9 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "PLP", EINSTRUCTION::PLP, EAddressingMode::Implicit, 1, 4},
         {  "BIT", EINSTRUCTION::BIT, EAddressingMode::Absolute, 3, 4},
         {  "BMI", EINSTRUCTION::BMI, EAddressingMode::Zeropage, 2, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 2, 4},
         {  "SEC", EINSTRUCTION::SEC, EAddressingMode::Implicit, 1, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 3, 4},
 
         // Green Block
         {  "AND", EINSTRUCTION::AND, EAddressingMode::XIndexedIndirect, 2, 6},
@@ -95,13 +98,13 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
     {{
         // Red Block
         {  "RTI", EINSTRUCTION::RTI, EAddressingMode::Implicit, 1, 6},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 2, 3},
         {  "PHA", EINSTRUCTION::PHA, EAddressingMode::Implicit, 1, 3},
         {  "JMP", EINSTRUCTION::JMP, EAddressingMode::Absolute, 3, 3},
         {  "BVC", EINSTRUCTION::BVC, EAddressingMode::Relative, 2, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 2, 4},
         {  "CLI", EINSTRUCTION::CLI, EAddressingMode::Implicit, 1, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 3, 4},
 
         // Green Block
         {  "EOR", EINSTRUCTION::EOR, EAddressingMode::XIndexedIndirect, 2, 6},
@@ -137,13 +140,13 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
     {{
         // Red Block
         {  "RTS", EINSTRUCTION::RTS, EAddressingMode::Implicit, 1, 6},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 2, 3},
         {  "PLA", EINSTRUCTION::PLA, EAddressingMode::Implicit, 1, 4},
         {  "JMP", EINSTRUCTION::JMP, EAddressingMode::Indirect, 3, 5},
         {  "BVS", EINSTRUCTION::BVS, EAddressingMode::Relative, 2, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 2, 4},
         {  "SEI", EINSTRUCTION::SEI, EAddressingMode::Implicit, 1, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 3, 4},
 
         // Green Block
         { "ADC", EINSTRUCTION::ADC, EAddressingMode::XIndexedIndirect, 2, 6},
@@ -178,7 +181,7 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
     // 80
     {{
         // Red Block
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Immediate, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Immediate, 2, 2},
         {  "STY", EINSTRUCTION::STY, EAddressingMode::Zeropage, 2, 3},
         {  "DEY", EINSTRUCTION::DEY, EAddressingMode::Implicit, 1, 2},
         {  "STY", EINSTRUCTION::STY, EAddressingMode::Absolute, 3, 4},
@@ -208,14 +211,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "SHX", EINSTRUCTION::SHX, EAddressingMode::YAbsoluteIndexed, 1, 5},
 
         // Grey Block
-        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::Zeropage, 2, 255},
-        {  "XAA", EINSTRUCTION::XAA, EAddressingMode::Immediate, 1, 255},
-        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::Absolute, 3, 255},
-        {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YIndirectIndexed, 1, 6},
-        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::YZeroPageIndexed, 2, 255},
-        {  "TAS", EINSTRUCTION::TAS, EAddressingMode::YAbsoluteIndexed, 1, 5},
-        {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YAbsoluteIndexed, 3, 6}
+        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::XIndexedIndirect, 2, 6},
+        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::Zeropage, 2, 3},
+        {  "XAA", EINSTRUCTION::XAA, EAddressingMode::Immediate, 1, 2},
+        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::Absolute, 3, 4},
+        {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YIndirectIndexed, 1, 5},
+        {  "SAX", EINSTRUCTION::SAX, EAddressingMode::YZeroPageIndexed, 2, 4},
+        {  "TAS", EINSTRUCTION::TAS, EAddressingMode::YAbsoluteIndexed, 3, 4},
+        {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YAbsoluteIndexed, 3, 4}
     }},
     // A0
     {{
@@ -250,14 +253,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "LDX", EINSTRUCTION::LDX, EAddressingMode::YAbsoluteIndexed, 3, 4},
 
         // Grey Block
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::Zeropage, 2, 255},
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::Immediate, 2, 255},
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::Absolute, 3, 255},
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YIndirectIndexed, 2, 255},
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YZeroPageIndexed, 2, 255},
-        {  "LAS", EINSTRUCTION::LAS, EAddressingMode::YAbsoluteIndexed, 3, 255},
-        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YAbsoluteIndexed, 3, 255},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::XIndexedIndirect, 2, 6},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::Zeropage, 2, 3},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::Immediate, 2, 2},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::Absolute, 3, 4},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YIndirectIndexed, 2, 5},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YZeroPageIndexed, 2, 4},
+        {  "LAS", EINSTRUCTION::LAS, EAddressingMode::YAbsoluteIndexed, 3, 4},
+        {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YAbsoluteIndexed, 3, 4},
     }},
     // C0
     {{
@@ -267,9 +270,9 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "INY", EINSTRUCTION::INY, EAddressingMode::Implicit, 1, 2},
         {  "CPY", EINSTRUCTION::CPY, EAddressingMode::Absolute, 3, 4},
         {  "BNE", EINSTRUCTION::BNE, EAddressingMode::Relative, 2, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 2, 4},
         {  "CLD", EINSTRUCTION::CLD, EAddressingMode::Implicit, 1, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 3, 4},
 
         // Green Block
         {  "CMP", EINSTRUCTION::CMP, EAddressingMode::XIndexedIndirect, 2, 6},
@@ -309,9 +312,9 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "INX", EINSTRUCTION::INX, EAddressingMode::Implicit, 1, 2},
         {  "CPX", EINSTRUCTION::CPX, EAddressingMode::Absolute, 3, 4},
         {  "BEQ", EINSTRUCTION::BEQ, EAddressingMode::Relative, 2, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XZeroPageIndexed, 2, 4},
         {  "SED", EINSTRUCTION::SED, EAddressingMode::Implicit, 1, 2},
-        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
+        {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 3, 4},
 
         // Green Block
         {  "SBC", EINSTRUCTION::SBC, EAddressingMode::XIndexedIndirect, 2, 6},
@@ -357,7 +360,11 @@ NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
     Column += (CC & 0b01) != 0 ? 8 : 0;
     Column += (CC & 0b10) != 0 ? 16 : 0;
 
-    NESOpCode Output = OpCodeTable[Row][Column + BBB];
+    int32_t X = Row;
+    int32_t Y = Column + BBB;
+    NESOpCode Output = OpCodeTable[X][Y];
+
+    std::cout << std::format("Op Code Index: [{0}[{1}]]", X, Y) << std::endl;
 
     return Output;
 }

@@ -335,7 +335,7 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
             TYA();
             break;
         case EINSTRUCTION::NOP:
-            NOP();
+            NOP(OpCode);
             break;
         case EINSTRUCTION::ALR:
             ALR(OpCode);
@@ -570,7 +570,8 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
 
 uint8_t CPU::ReadMemory(NESOpCode* OpCode)
 {
-    assert(OpCode->AddressMode != EAddressingMode::Implicit);
+    // NOP uses implicit
+    //assert(OpCode->AddressMode != EAddressingMode::Implicit);
 
     // Used for XIndexedIndirect which needs to retain the original read.
     // Should refactor the rest to be consistent.
@@ -771,6 +772,8 @@ void CPU::TriggerInterrupt()
 
 void CPU::ASL(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
+
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
@@ -796,10 +799,15 @@ void CPU::ASL(NESOpCode* OpCode)
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
+
+    // LSR, ASL, ROL, ROR do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::LSR(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
+
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
@@ -823,10 +831,16 @@ void CPU::LSR(NESOpCode* OpCode)
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
+
+
+    // LSR, ASL, ROL, ROR do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::ROL(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
+
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
@@ -855,10 +869,15 @@ void CPU::ROL(NESOpCode* OpCode)
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
+
+    // LSR, ASL, ROL, ROR do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::ROR(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
+
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
@@ -887,6 +906,9 @@ void CPU::ROR(NESOpCode* OpCode)
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
+
+    // LSR, ASL, ROL, ROR do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::BNE(NESOpCode* OpCode)
@@ -1375,6 +1397,8 @@ void CPU::SBC(NESOpCode* OpCode)
 
 void CPU::DEC(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
+
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
@@ -1394,6 +1418,9 @@ void CPU::DEC(NESOpCode* OpCode)
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
+
+    // INC, DEC, do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::DEX()
@@ -1445,6 +1472,8 @@ void CPU::EOR(NESOpCode* OpCode)
 
 void CPU::INC(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
+
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
@@ -1464,6 +1493,9 @@ void CPU::INC(NESOpCode* OpCode)
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
+
+    // INC, DEC, do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::INX()
@@ -1583,17 +1615,29 @@ void CPU::PLP()
 
 void CPU::STA(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
     WriteMemory(OpCode, mRegisters.A);
+
+    // STA, STX, STY do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::STX(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
     WriteMemory(OpCode, mRegisters.X);
+
+    // STA, STX, STY do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::STY(NESOpCode* OpCode)
 {
+    auto OriginalCycleCount = OpCode->Cycles;
     WriteMemory(OpCode, mRegisters.Y);
+
+    // STA, STX, STY do not consume more cycles on page miss.
+    OpCode->Cycles = OriginalCycleCount;
 }
 
 void CPU::TAX()
@@ -1676,8 +1720,10 @@ void CPU::TYA()
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::NOP()
+void CPU::NOP(NESOpCode* OpCode)
 {
+    ReadMemory(OpCode);
+    //mRegisters.PC += OpCode->OperandByteCount - 1;
 }
 
 void CPU::ALR(NESOpCode* OpCode)
