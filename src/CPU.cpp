@@ -1262,9 +1262,9 @@ void CPU::ADC(const NESOpCode* OpCode)
 
     bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    uint32_t A = uint32_t(mRegisters.A) + Memory + Carry;
+    int16_t A = int16_t(mRegisters.A) + Memory + Carry;
 
-    if (const bool bOverflowed = (~(mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
+    if (const bool bOverflowed = (A & 0xFF00) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
@@ -1293,9 +1293,9 @@ void CPU::SBC(const NESOpCode* OpCode)
 
     bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    uint32_t A = uint32_t(mRegisters.A)  + ~Memory + Carry;
+    int16_t A = int16_t(mRegisters.A)  + ~Memory + Carry;
 
-    if (const bool bOverflowed = (~(mRegisters.A ^ Memory) & (mRegisters.A ^ A) & 0x80) != 0)
+    if (const bool bOverflowed = (A & 0xFF00) != 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
