@@ -45,6 +45,8 @@ class CPU {
     double mClockFrequency = 0.f;
     double mCycleTime = 0.f;
 
+    int64_t mCycleCount = 0;
+
     MemoryMapper* mMemoryMapper;
 
     // Needed for reading the NMI Pin, could refactor this later with like...a pin manager?
@@ -61,6 +63,8 @@ public :
     uint8_t ExecuteNextInstruction();
 
     double GetCycleTime() const;
+
+    int64_t GetCycleCount() const;
 
 // Should probably move instructions to a different file, but this'll do for now.
 private:
@@ -144,4 +148,10 @@ private:
     void AXS(NESOpCode* OpCode);
     void LAX(const NESOpCode* OpCode);
     void SAX(const NESOpCode* OpCode);
+    void DCP(NESOpCode* OpCode);
+    void ISC(NESOpCode* OpCode);
+    void RLA(NESOpCode* OpCode);
+    void RRA(NESOpCode* OpCode);
+    void SLO(NESOpCode* OpCode);
+    void SRE(NESOpCode* OpCode);
 };

@@ -91,8 +91,8 @@ void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper, PPU* PPU)
     // PC Code is read from 0xFFFC and 0xFFFD (reset vector)
     mRegisters.PC = mMemoryMapper->Read16Bit(INITIAL_PC);
 
-    //std::cout << std::format("FFFC: {0:x}", mMemoryMapper->Read8Bit(0xFFFB)) << std::endl;
-    //std::cout << std::format("FFFD: {0:x}", mMemoryMapper->Read8Bit(0xFFFC)) << std::endl;
+    // Takes 7 cycles to initialize stack, and read the initial PC.
+    mCycleCount = 7;
 
     DebugInit(ROM);
 
@@ -111,6 +111,11 @@ void CPU::DebugInit(const ROMData& ROM)
 double CPU::GetCycleTime() const
 {
     return mCycleTime;
+}
+
+int64_t CPU::GetCycleCount() const
+{
+    return mCycleCount;
 }
 
 uint8_t CPU::ExecuteNextInstruction()
@@ -152,11 +157,11 @@ uint8_t CPU::ExecuteNextInstruction()
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
     auto OpCode = OpCodeDecoder::DecodeOpCode(AAA, BBB, CC);
 
-    std::cout << std::format("Executing Instruction: {0} ({3:X}), at {1:X}, with Addressing Mode {2}", OpCode.Name, InstructionPC, static_cast<int32_t>(OpCode.AddressMode), PCData) << std::endl;
+    std::cout << std::format("{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}", mRegisters.PC-1, OpCode.Name,
+                             mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount) << std::endl;
 
     ExecuteInstruction(&OpCode);
-    std::cout << std::format("Registers: A:{0:X}, X:{1:X}, Y:{2:X}, PC:{3:X}, S:{4:X}, P:{5:X}",
-                             mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.PC, mRegisters.S, mRegisters.P) << std::endl;
+    mCycleCount += OpCode.Cycles;
 
     return OpCode.Cycles;
 }
@@ -349,6 +354,24 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
             break;
         case EINSTRUCTION::SAX:
             SAX(OpCode);
+            break;
+        case EINSTRUCTION::DCP:
+            DCP(OpCode);
+            break;
+        case EINSTRUCTION::ISC:
+            ISC(OpCode);
+            break;
+        case EINSTRUCTION::RLA:
+            RLA(OpCode);
+            break;
+        case EINSTRUCTION::RRA:
+            RRA(OpCode);
+            break;
+        case EINSTRUCTION::SLO:
+            SLO(OpCode);
+            break;
+        case EINSTRUCTION::SRE:
+            SRE(OpCode);
             break;
         default:
         {
@@ -1604,11 +1627,16 @@ void CPU::NOP()
 
 void CPU::ALR(NESOpCode* OpCode)
 {
+    auto OldPC = mRegisters.PC;
     OpCode->AddressMode = EAddressingMode::Immediate;
     AND(OpCode);
 
+    mRegisters.PC = OldPC;
     OpCode->AddressMode = EAddressingMode::Accumulator;
     LSR(OpCode);
+
+    // Immediate increment
+    mRegisters.PC++;
 }
 
 void CPU::ANC(NESOpCode* OpCode)
@@ -1624,8 +1652,10 @@ void CPU::ANC(NESOpCode* OpCode)
 
 void CPU::ARR(NESOpCode* OpCode)
 {
+    auto OldPC = mRegisters.PC;
     OpCode->AddressMode = EAddressingMode::Immediate;
     AND(OpCode);
+    mRegisters.PC = OldPC;
 
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
@@ -1704,4 +1734,58 @@ void CPU::LAX(const NESOpCode* OpCode)
 void CPU::SAX(const NESOpCode* OpCode)
 {
     WriteMemory(OpCode->AddressMode, mRegisters.A & mRegisters.X);
+}
+
+void CPU::DCP(NESOpCode* OpCode)
+{
+    auto OldPC = mRegisters.PC;
+    DEC(OpCode);
+
+    mRegisters.PC = OldPC;
+    CMP(OpCode);
+}
+
+void CPU::ISC(NESOpCode* OpCode)
+{
+    auto OldPC = mRegisters.PC;
+    INC(OpCode);
+
+    mRegisters.PC = OldPC;
+    SBC(OpCode);
+}
+
+void CPU::RLA(NESOpCode* OpCode)
+{
+    auto OldPC = mRegisters.PC;
+    ROL(OpCode);
+
+    mRegisters.PC = OldPC;
+    AND(OpCode);
+}
+
+void CPU::RRA(NESOpCode* OpCode)
+{
+    auto OldPC = mRegisters.PC;
+    ROR(OpCode);
+
+    mRegisters.PC = OldPC;
+    ADC(OpCode);
+}
+
+void CPU::SLO(NESOpCode* OpCode)
+{
+    auto OldPC = mRegisters.PC;
+    ASL(OpCode);
+
+    mRegisters.PC = OldPC;
+    ORA(OpCode);
+}
+
+void CPU::SRE(NESOpCode* OpCode)
+{
+    auto OldPC = mRegisters.PC;
+    LSR(OpCode);
+
+    mRegisters.PC = OldPC;
+    EOR(OpCode);
 }

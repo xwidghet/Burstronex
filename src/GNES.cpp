@@ -20,7 +20,6 @@ void GNES::Run(const std::string& RomPath)
     mCPU = std::make_unique<CPU>();
     mCPU->Init(ROM, &*mRAM, &*mPPU);
 
-    int64_t TotalCycles = 0;
     while (true)
     {
         // PPU ticks 3x as fast as the CPU. For now, tick 3 times for simplicity.
@@ -43,8 +42,9 @@ void GNES::Run(const std::string& RomPath)
         }
 
         // Debug Remove me later.
-        TotalCycles += CyclesUsed;
-       // if (TotalCycles > 40000)
-        //    break;
+        if (mCPU->GetCycleCount() > 36554)
+            break;
     }
+
+    std::cout << std::format("0x02: {0}, 0x03: {1}", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03)) << std::endl;
 }
