@@ -43,14 +43,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "ASL", EINSTRUCTION::ASL, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block (Unknown Operand Sizes and Cycle Counts)
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::Zeropage, 2, 255},
-        {  "ANC", EINSTRUCTION::ANC, EAddressingMode::Immediate, 2, 255},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::Absolute, 3, 255},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::YIndirectIndexed, 2, 255},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XZeroPageIndexed, 2, 255},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::YAbsoluteIndexed, 3, 255},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XAbsoluteIndexed, 3, 255}
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XIndexedIndirect, 2, 8},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::Zeropage, 2, 5},
+        {  "ANC", EINSTRUCTION::ANC, EAddressingMode::Immediate, 2, 2},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::Absolute, 3, 6},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::YIndirectIndexed, 2, 7},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XZeroPageIndexed, 2, 6},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::YAbsoluteIndexed, 3, 6},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XAbsoluteIndexed, 3, 6}
     }},
     // 20
     {{
@@ -85,14 +85,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "ROL", EINSTRUCTION::ROL, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block (Unkown Sizes and Cycle Counts, supposedly Addressing Mode gives size)
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XIndexedIndirect, 3, 7},
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::Zeropage, 2, 7},
-        {  "ANC", EINSTRUCTION::ANC, EAddressingMode::Immediate, 2, 7},
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::Absolute, 3, 7},
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XIndexedIndirect, 3, 8},
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::Zeropage, 2, 5},
+        {  "ANC", EINSTRUCTION::ANC, EAddressingMode::Immediate, 2, 2},
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::Absolute, 3, 6},
         {  "RLA", EINSTRUCTION::RLA, EAddressingMode::YIndirectIndexed, 2, 7},
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XZeroPageIndexed, 2, 7},
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::YAbsoluteIndexed, 3, 7},
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XAbsoluteIndexed, 3, 7}
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XZeroPageIndexed, 2, 6},
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::YAbsoluteIndexed, 3, 6},
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XAbsoluteIndexed, 3, 6}
     }},
     // 40
     {{
@@ -127,14 +127,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "LSR", EINSTRUCTION::LSR, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::Zeropage, 2, 255},
-        {  "ALR", EINSTRUCTION::ALR, EAddressingMode::Immediate, 2, 255},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::Absolute, 3, 255},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::YIndirectIndexed, 2, 255},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XZeroPageIndexed, 2, 255},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::YAbsoluteIndexed, 3, 255},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XAbsoluteIndexed, 3, 255}
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XIndexedIndirect, 2, 8},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::Zeropage, 2, 5},
+        {  "ALR", EINSTRUCTION::ALR, EAddressingMode::Immediate, 2, 2},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::Absolute, 3, 6},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::YIndirectIndexed, 2, 7},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XZeroPageIndexed, 2, 6},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::YAbsoluteIndexed, 3, 6},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XAbsoluteIndexed, 3, 6}
     }},
     // 60
     {{
@@ -169,14 +169,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "ROR", EINSTRUCTION::ROR, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::Zeropage, 2, 255},
-        {  "ARR", EINSTRUCTION::ARR, EAddressingMode::Immediate, 2, 255},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::Absolute, 3, 255},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::YIndirectIndexed, 2, 255},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XZeroPageIndexed, 3, 255},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::YAbsoluteIndexed, 3, 255},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XAbsoluteIndexed, 3, 255}
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XIndexedIndirect, 2, 8},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::Zeropage, 2, 5},
+        {  "ARR", EINSTRUCTION::ARR, EAddressingMode::Immediate, 2, 2},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::Absolute, 3, 6},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::YIndirectIndexed, 2, 7},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XZeroPageIndexed, 3, 6},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::YAbsoluteIndexed, 3, 6},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XAbsoluteIndexed, 3, 6}
     }},
     // 80
     {{
@@ -295,14 +295,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "DEC", EINSTRUCTION::DEC, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::Zeropage, 2, 255},
-        {  "AXS", EINSTRUCTION::AXS, EAddressingMode::Immediate, 1, 255},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::Absolute, 3, 255},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::YIndirectIndexed, 2, 255},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XZeroPageIndexed, 2, 255},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::YAbsoluteIndexed, 3, 255},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XAbsoluteIndexed, 3, 255}
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XIndexedIndirect, 2, 8},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::Zeropage, 2, 5},
+        {  "AXS", EINSTRUCTION::AXS, EAddressingMode::Immediate, 1, 2},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::Absolute, 3, 6},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::YIndirectIndexed, 2, 7},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XZeroPageIndexed, 2, 6},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::YAbsoluteIndexed, 3, 6},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XAbsoluteIndexed, 3, 6}
     }},
     // E0
     {{
@@ -337,14 +337,14 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "INC", EINSTRUCTION::INC, EAddressingMode::XAbsoluteIndexed, 3, 7},
 
         // Grey Block
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XIndexedIndirect, 2, 255},
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::Zeropage, 2, 255},
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XIndexedIndirect, 2, 8},
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::Zeropage, 2, 5},
         {  "SBC", EINSTRUCTION::SBC, EAddressingMode::Immediate, 2, 2},
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::Absolute, 3, 255},
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::YIndirectIndexed, 2, 255},
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XZeroPageIndexed, 2, 255},
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::YAbsoluteIndexed, 3, 255},
-        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XAbsoluteIndexed, 3, 255}
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::Absolute, 3, 6},
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::YIndirectIndexed, 2, 7},
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XZeroPageIndexed, 2, 6},
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::YAbsoluteIndexed, 3, 6},
+        {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XAbsoluteIndexed, 3, 6}
     }}
 }};
 
