@@ -392,11 +392,11 @@ uint8_t CPU::PopStack()
     return mMemoryMapper->Read8Bit(mStackLocation + static_cast<uint16_t>(mRegisters.S));
 }
 
-void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
+void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
 {
     // Not sure how to implement these, so asserting to find use cases.
-    assert(AddressMode != EAddressingMode::Implicit);
-    assert(AddressMode != EAddressingMode::Immediate);
+    assert(OpCode->AddressMode != EAddressingMode::Implicit);
+    assert(OpCode->AddressMode != EAddressingMode::Immediate);
 
     // Used for XIndexedIndirect which needs to retain the original read.
     // Should refactor the rest to be consistent.
@@ -410,7 +410,7 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
 
     uint16_t Address = 0;
 
-    switch (AddressMode)
+    switch (OpCode->AddressMode)
     {
         // d,x
         case EAddressingMode::XZeroPageIndexed:
@@ -444,6 +444,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.X;
 
+            // Oops cycle
+            OpCode->Cycles += 1;
+
             mMemoryMapper->Write8Bit(Address, Value);
             break;
         // a,y
@@ -455,6 +458,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
+
+            // Oops cycle
+            OpCode->Cycles += 1;
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -486,6 +492,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
+
+            // Oops write cycle
+            OpCode->Cycles += 1;
 
             std::cout << std::format("Write YIndirectIndexed Address: {0:04X}", Address) << std::endl;
 
@@ -559,9 +568,9 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
     }
 }
 
-uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
+uint8_t CPU::ReadMemory(NESOpCode* OpCode)
 {
-    assert(AddressMode != EAddressingMode::Implicit);
+    assert(OpCode->AddressMode != EAddressingMode::Implicit);
 
     // Used for XIndexedIndirect which needs to retain the original read.
     // Should refactor the rest to be consistent.
@@ -575,7 +584,7 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
     uint16_t Address = 0;
 
-    switch (AddressMode)
+    switch (OpCode->AddressMode)
     {
         // d,x
         case EAddressingMode::XZeroPageIndexed:
@@ -609,6 +618,9 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.X;
 
+            // Page wrap oops cycle.
+            OpCode->Cycles += PageCrossed(Address, Address - mRegisters.X);
+
             return mMemoryMapper->Read8Bit(Address);
             break;
             // a,y
@@ -620,6 +632,9 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
+
+            // Page wrap oops cycle.
+            OpCode->Cycles += PageCrossed(Address, Address - mRegisters.Y);
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -652,6 +667,8 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
+
+            OpCode->Cycles += PageCrossed(Address, Address - mRegisters.Y);
 
             std::cout << std::format("Read YIndirectIndexed Address: {0:04X}", Address) << std::endl;
 
@@ -730,6 +747,11 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
     return 0;
 }
 
+bool CPU::PageCrossed(uint16_t Left, uint16_t Right)
+{
+    return (Left & 0xFF00) != (Right & 0xFF00);
+}
+
 void CPU::TriggerInterrupt()
 {
     uint8_t HighByte = (mRegisters.PC >> 8) & 0xFF;
@@ -752,7 +774,7 @@ void CPU::ASL(NESOpCode* OpCode)
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     bool Carry = (Memory & 0b10000000) != 0;
 
     Memory = Memory << 1;
@@ -773,7 +795,7 @@ void CPU::ASL(NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::LSR(NESOpCode* OpCode)
@@ -781,7 +803,7 @@ void CPU::LSR(NESOpCode* OpCode)
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     bool Carry = (Memory & 0b00000001) != 0;
 
     Memory = Memory >> 1;
@@ -800,7 +822,7 @@ void CPU::LSR(NESOpCode* OpCode)
     mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::ROL(NESOpCode* OpCode)
@@ -808,7 +830,7 @@ void CPU::ROL(NESOpCode* OpCode)
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     bool MemoryCarry = (Memory & 0b10000000) != 0;
     bool CPUCarry = (mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0;
 
@@ -832,7 +854,7 @@ void CPU::ROL(NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::ROR(NESOpCode* OpCode)
@@ -840,7 +862,7 @@ void CPU::ROR(NESOpCode* OpCode)
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     bool MemoryCarry = (Memory & 0b00000001) != 0;
     bool CPUCarry = (mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0;
 
@@ -864,7 +886,7 @@ void CPU::ROR(NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::BNE(NESOpCode* OpCode)
@@ -988,7 +1010,7 @@ void CPU::BVS(NESOpCode* OpCode)
 
 void CPU::BIT(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     uint8_t A = mRegisters.A & Memory;
 
@@ -1046,7 +1068,7 @@ void CPU::BRK()
     mRegisters.PC = 0xFFFE;
 }
 
-void CPU::JMP(const NESOpCode* OpCode)
+void CPU::JMP(NESOpCode* OpCode)
 {
     assert((OpCode->AddressMode == EAddressingMode::Absolute) || (OpCode->AddressMode == EAddressingMode::Indirect));
 
@@ -1123,7 +1145,7 @@ void CPU::RTI()
 
 void CPU::CMP(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     int32_t A = int32_t(mRegisters.A) - Memory;
 
@@ -1143,9 +1165,9 @@ void CPU::CMP(NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::CPX(const NESOpCode* OpCode)
+void CPU::CPX(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     int32_t X = int32_t(mRegisters.X) - Memory;
 
@@ -1165,9 +1187,9 @@ void CPU::CPX(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::CPY(const NESOpCode* OpCode)
+void CPU::CPY(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     int32_t Y = int32_t(mRegisters.Y) - Memory;
 
@@ -1224,9 +1246,9 @@ void CPU::SED()
     mRegisters.P |= static_cast<uint8_t>((EStatusFlags::DECIMAL));
 }
 
-void CPU::AND(const NESOpCode* OpCode)
+void CPU::AND(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     mRegisters.A &= Memory;
 
     if (mRegisters.A == 0)
@@ -1240,9 +1262,9 @@ void CPU::AND(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::ORA(const NESOpCode* OpCode)
+void CPU::ORA(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     mRegisters.A |= Memory;
 
     if (mRegisters.A == 0)
@@ -1256,9 +1278,9 @@ void CPU::ORA(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::ADC(const NESOpCode* OpCode)
+void CPU::ADC(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     uint32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
@@ -1287,9 +1309,9 @@ void CPU::ADC(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::SBC(const NESOpCode* OpCode)
+void CPU::SBC(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     Memory ^= 0xFF;
 
     uint32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
@@ -1319,12 +1341,12 @@ void CPU::SBC(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::DEC(const NESOpCode* OpCode)
+void CPU::DEC(NESOpCode* OpCode)
 {
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     Memory -= 1;
 
@@ -1339,7 +1361,7 @@ void CPU::DEC(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::DEX()
@@ -1372,9 +1394,9 @@ void CPU::DEY()
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::EOR(const NESOpCode* OpCode)
+void CPU::EOR(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     mRegisters.A ^= Memory;
 
@@ -1389,12 +1411,12 @@ void CPU::EOR(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::INC(const NESOpCode* OpCode)
+void CPU::INC(NESOpCode* OpCode)
 {
     // HACK FOR NOT RETURNING MEMORY POINTERS...NOT TOO SURE THE RIGHT WAY TO ARCHITECT THIS
     auto TargetPC = mRegisters.PC;
 
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
 
     Memory += 1;
 
@@ -1409,7 +1431,7 @@ void CPU::INC(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::INX()
@@ -1442,9 +1464,9 @@ void CPU::INY()
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::LDA(const NESOpCode* OpCode)
+void CPU::LDA(NESOpCode* OpCode)
 {
-    mRegisters.A = ReadMemory(OpCode->AddressMode);
+    mRegisters.A = ReadMemory(OpCode);
 
     if (mRegisters.A == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
@@ -1457,9 +1479,9 @@ void CPU::LDA(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::LDX(const NESOpCode* OpCode)
+void CPU::LDX(NESOpCode* OpCode)
 {
-    mRegisters.X = ReadMemory(OpCode->AddressMode);
+    mRegisters.X = ReadMemory(OpCode);
 
     if (mRegisters.X == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
@@ -1472,9 +1494,9 @@ void CPU::LDX(const NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::LDY(const NESOpCode* OpCode)
+void CPU::LDY(NESOpCode* OpCode)
 {
-    mRegisters.Y = ReadMemory(OpCode->AddressMode);
+    mRegisters.Y = ReadMemory(OpCode);
 
     if (mRegisters.Y == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
@@ -1527,19 +1549,19 @@ void CPU::PLP()
     mRegisters.P = CPUSTATUS;
 }
 
-void CPU::STA(const NESOpCode* OpCode)
+void CPU::STA(NESOpCode* OpCode)
 {
-    WriteMemory(OpCode->AddressMode, mRegisters.A);
+    WriteMemory(OpCode, mRegisters.A);
 }
 
-void CPU::STX(const NESOpCode* OpCode)
+void CPU::STX(NESOpCode* OpCode)
 {
-    WriteMemory(OpCode->AddressMode, mRegisters.X);
+    WriteMemory(OpCode, mRegisters.X);
 }
 
-void CPU::STY(const NESOpCode* OpCode)
+void CPU::STY(NESOpCode* OpCode)
 {
-    WriteMemory(OpCode->AddressMode, mRegisters.Y);
+    WriteMemory(OpCode, mRegisters.Y);
 }
 
 void CPU::TAX()
@@ -1663,7 +1685,7 @@ void CPU::ARR(NESOpCode* OpCode)
 
     // ROR Copy, with modifications
     OpCode->AddressMode = EAddressingMode::Accumulator;
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     bool MemoryCarry = (Memory & 0b00000001) != 0;
     bool CPUCarry = (mRegisters.P & static_cast<uint8_t>(EStatusFlags::CARRY)) != 0;
 
@@ -1697,12 +1719,12 @@ void CPU::ARR(NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 
     mRegisters.PC = TargetPC;
-    WriteMemory(OpCode->AddressMode, Memory);
+    WriteMemory(OpCode, Memory);
 }
 
 void CPU::AXS(NESOpCode* OpCode)
 {
-    uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    uint8_t Memory = ReadMemory(OpCode);
     mRegisters.X &= mRegisters.A;
 
     // AXS doesn't borrow, and doesn't write Overflow
@@ -1726,15 +1748,15 @@ void CPU::AXS(NESOpCode* OpCode)
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
-void CPU::LAX(const NESOpCode* OpCode)
+void CPU::LAX(NESOpCode* OpCode)
 {
     LDA(OpCode);
     TAX();
 }
 
-void CPU::SAX(const NESOpCode* OpCode)
+void CPU::SAX(NESOpCode* OpCode)
 {
-    WriteMemory(OpCode->AddressMode, mRegisters.A & mRegisters.X);
+    WriteMemory(OpCode, mRegisters.A & mRegisters.X);
 }
 
 void CPU::DCP(NESOpCode* OpCode)

@@ -80,11 +80,14 @@ private:
 
     // Using the current PC, reads the current operand's addressing parameters and writes the given value to the address calculated.
     // Increments PC as needed based on Address Mode.
-    void WriteMemory(EAddressingMode AddressMode, uint8_t Value);
+    void WriteMemory(NESOpCode* OpCode, uint8_t Value);
 
     // Using the current PC, reads the current operand's addressing parameters and returns the value from the address calculated.
     // Increments PC as needed based on Address Mode.
-    uint8_t ReadMemory(EAddressingMode AddressMode);
+    // Increments OpCode's cycle count when a page is crossed.
+    uint8_t ReadMemory(NESOpCode* OpCode);
+
+    static bool PageCrossed(uint16_t Left, uint16_t Right);
 
     void ASL(NESOpCode* OpCode);
     void LSR(NESOpCode* OpCode);
@@ -100,13 +103,13 @@ private:
     void BVS(NESOpCode* OpCode);
     void BIT(NESOpCode* OpCode);
     void BRK();
-    void JMP(const NESOpCode* OpCode);
+    void JMP(NESOpCode* OpCode);
     void JSR();
     void RTS();
     void RTI();
     void CMP(NESOpCode* OpCode);
-    void CPX(const NESOpCode* OpCode);
-    void CPY(const NESOpCode* OpCode);
+    void CPX(NESOpCode* OpCode);
+    void CPY(NESOpCode* OpCode);
     void CLC();
     void CLD();
     void CLV();
@@ -114,27 +117,27 @@ private:
     void SED();
     void SEI();
     void CLI();
-    void AND(const NESOpCode* OpCode);
-    void ORA(const NESOpCode* OpCode);
-    void ADC(const NESOpCode* OpCode);
-    void SBC(const NESOpCode* OpCode);
-    void DEC(const NESOpCode* OpCode);
+    void AND(NESOpCode* OpCode);
+    void ORA(NESOpCode* OpCode);
+    void ADC(NESOpCode* OpCode);
+    void SBC(NESOpCode* OpCode);
+    void DEC(NESOpCode* OpCode);
     void DEX();
     void DEY();
-    void EOR(const NESOpCode* OpCode);
-    void INC(const NESOpCode* OpCode);
+    void EOR(NESOpCode* OpCode);
+    void INC(NESOpCode* OpCode);
     void INX();
     void INY();
-    void LDA(const NESOpCode* OpCode);
-    void LDX(const NESOpCode* OpCode);
-    void LDY(const NESOpCode* OpCode);
+    void LDA(NESOpCode* OpCode);
+    void LDX(NESOpCode* OpCode);
+    void LDY(NESOpCode* OpCode);
     void PHA();
     void PHP();
     void PLA();
     void PLP();
-    void STA(const NESOpCode* OpCode);
-    void STX(const NESOpCode* OpCode);
-    void STY(const NESOpCode* OpCode);
+    void STA(NESOpCode* OpCode);
+    void STX(NESOpCode* OpCode);
+    void STY(NESOpCode* OpCode);
     void TAX();
     void TAY();
     void TSX();
@@ -146,8 +149,8 @@ private:
     void ANC(NESOpCode* OpCode);
     void ARR(NESOpCode* OpCode);
     void AXS(NESOpCode* OpCode);
-    void LAX(const NESOpCode* OpCode);
-    void SAX(const NESOpCode* OpCode);
+    void LAX(NESOpCode* OpCode);
+    void SAX(NESOpCode* OpCode);
     void DCP(NESOpCode* OpCode);
     void ISC(NESOpCode* OpCode);
     void RLA(NESOpCode* OpCode);
