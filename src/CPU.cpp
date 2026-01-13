@@ -1260,21 +1260,21 @@ void CPU::ADC(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
 
-    bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
+    uint32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int16_t A = int16_t(mRegisters.A) + Memory + Carry;
+    uint32_t Temp = uint32_t(mRegisters.A) + Memory + Carry;
 
-    if (const bool bOverflowed = (A & 0xFF00) != 0)
+    if ((Temp ^ mRegisters.A) & (Temp ^ Memory) & 0x80)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (A > 0xFF)
+    if ((Temp >> 8) & 1)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
     else
          mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
 
-    mRegisters.A = uint8_t(A);
+    mRegisters.A = uint8_t(Temp & 0xFF);
 
     if (mRegisters.A == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
@@ -1290,22 +1290,23 @@ void CPU::ADC(const NESOpCode* OpCode)
 void CPU::SBC(const NESOpCode* OpCode)
 {
     uint8_t Memory = ReadMemory(OpCode->AddressMode);
+    Memory ^= 0xFF;
 
-    bool Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
+    uint32_t Carry = (mRegisters.P & static_cast<uint8_t>((EStatusFlags::CARRY))) != 0;
 
-    int16_t A = int16_t(mRegisters.A)  + ~Memory + Carry;
+    uint32_t Temp = uint32_t(mRegisters.A)  + Memory + Carry;
 
-    if (const bool bOverflowed = (A & 0xFF00) != 0)
+    if ((Temp ^ mRegisters.A) & (Temp ^ Memory) & 0x80)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (A >= 0)
+    if ((Temp >> 8) & 1)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
 
-    mRegisters.A = uint8_t(A);
+    mRegisters.A = uint8_t(Temp & 0xFF);
 
     if (mRegisters.A == 0)
         mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
