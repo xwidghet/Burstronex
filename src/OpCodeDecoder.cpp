@@ -146,7 +146,7 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::XAbsoluteIndexed, 1, 2},
 
         // Green Block
-        { "ADC", EINSTRUCTION::ADC, EAddressingMode::XZeroPageIndexed, 2, 4},
+        { "ADC", EINSTRUCTION::ADC, EAddressingMode::XIndexedIndirect, 2, 4},
         { "ADC", EINSTRUCTION::ADC, EAddressingMode::Zeropage, 2, 3},
         { "ADC", EINSTRUCTION::ADC, EAddressingMode::Immediate, 2, 2},
         { "ADC", EINSTRUCTION::ADC, EAddressingMode::Absolute, 3, 4},

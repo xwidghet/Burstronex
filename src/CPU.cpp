@@ -426,22 +426,25 @@ void CPU::WriteMemory(EAddressingMode AddressMode, uint8_t Value)
             Address = (Memory + mRegisters.X + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
-
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            std::cout << std::format("Write XIndexedIndirect Address: {0:04X}", Address) << std::endl;
             mMemoryMapper->Write8Bit(Address, Value);
             break;
         // (d), y
         case EAddressingMode::YIndirectIndexed:
-            Address = mMemoryMapper->Read8Bit(mRegisters.PC);
+            Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
+            Address = Memory & 0xFF;
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (Address + 1) & 0xFF;
+            Address = (Memory + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
+
+            std::cout << std::format("Write YIndirectIndexed Address: {0:04X}", Address) << std::endl;
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -581,22 +584,26 @@ uint8_t CPU::ReadMemory(EAddressingMode AddressMode)
             Address = (Memory + mRegisters.X + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
 
+            std::cout << std::format("Read XIndexedIndirect Address: {0:04X}", Address) << std::endl;
             return mMemoryMapper->Read8Bit(Address);
             break;
             // (d), y
         case EAddressingMode::YIndirectIndexed:
-            Address = mMemoryMapper->Read8Bit(mRegisters.PC);
+            Memory = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
+            Address = Memory & 0xFF;
             OperandLowByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (Address + 1) & 0xFF;
+            Address = (Memory + 1) & 0xFF;
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) + OperandLowByte;
+            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
+
+            std::cout << std::format("Read YIndirectIndexed Address: {0:04X}", Address) << std::endl;
 
             return mMemoryMapper->Read8Bit(Address);
             break;
