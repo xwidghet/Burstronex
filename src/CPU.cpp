@@ -900,7 +900,11 @@ void CPU::BNE(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -917,7 +921,11 @@ void CPU::BPL(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -934,7 +942,11 @@ void CPU::BCC(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -951,7 +963,11 @@ void CPU::BCS(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -968,7 +984,11 @@ void CPU::BEQ(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
-        mRegisters.PC = mRegisters.PC + JumpDistance;
+        uint16_t OldPC = mRegisters.PC;
+        mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -985,7 +1005,11 @@ void CPU::BVC(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -1002,7 +1026,11 @@ void CPU::BVS(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
@@ -1041,7 +1069,11 @@ void CPU::BMI(NESOpCode* OpCode)
         if (JumpDistance > 127)
             JumpDistance -= 256;
 
+        uint16_t OldPC = mRegisters.PC;
         mRegisters.PC += JumpDistance;
+
+        if (PageCrossed(OldPC,mRegisters.PC))
+            OpCode->Cycles += 1;
 
         OpCode->Cycles += 1;
     }
