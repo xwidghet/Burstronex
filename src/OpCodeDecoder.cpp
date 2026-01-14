@@ -333,16 +333,13 @@ std::array<NESOpCode, 256> OpCodeTable =
 
 NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
 {
-    // Should be 0-7
-    int32_t Row = AAA;
-    int32_t Column = 0;
+    uint8_t X = AAA;
 
     // Implicit third push from 0b11 passing 0b01 and 0b10 tests
-    Column += (CC & 0b01) != 0 ? 8 : 0;
-    Column += (CC & 0b10) != 0 ? 16 : 0;
+    uint8_t Y = (CC & 0b01) != 0 ? 8 : 0;
+    Y += (CC & 0b10) != 0 ? 16 : 0;
+    Y += BBB;
 
-    int32_t X = Row;
-    int32_t Y = Column + BBB;
     NESOpCode Output = OpCodeTable[X*32 + Y];
 
     mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Op Code Index: [{0}[{1}]]\n", X, Y);

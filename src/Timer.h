@@ -3,7 +3,7 @@
 #include <chrono>
 
 class Timer {
-    std::chrono::time_point<std::chrono::steady_clock> StartTime;
+    std::chrono::time_point<std::chrono::high_resolution_clock> StartTime;
 
 public:
     Timer();
@@ -13,4 +13,7 @@ public:
     double PeakDeltaTime() const;
 
     double GetDeltaTime();
+
+    // Waits until the time between the timer's start time and now becomes the argument
+    void WaitUntil(double Seconds);
 };

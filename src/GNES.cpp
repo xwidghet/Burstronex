@@ -29,19 +29,23 @@ void GNES::Run(const std::string& RomPath)
 
     Timer EmulatorSpeedTimer;
     int64_t LastCPUCycles = mCPU->GetCycleCount();
+    uint8_t WaitCycles = 0;
 
     while (true)
     {
-        ClockTimer.Reset();
-
         auto CyclesUsed = mCPU->ExecuteNextInstruction();
-        auto ExecutionTime = mCPU->GetCycleTime() * CyclesUsed;
+        WaitCycles += CyclesUsed;
 
         mPPU->Execute(CyclesUsed);
         mAPU->Execute(CyclesUsed);
 
-        while (ClockTimer.PeakDeltaTime() < ExecutionTime)
+        if (WaitCycles > 50)
         {
+            auto ExecutionTime = mCPU->GetCycleTime() * WaitCycles;
+            WaitCycles = 0;
+
+            ClockTimer.WaitUntil(ExecutionTime);
+            ClockTimer.Reset();
         }
 
         if (EmulatorSpeedTimer.PeakDeltaTime() >= 1.0)
