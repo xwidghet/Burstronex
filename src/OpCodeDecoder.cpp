@@ -6,10 +6,9 @@
 // Cycle counts are the constant cost, branches add one cycle, crossing memory pages adds one cycle.
 // Sizes are Instruction + Operands,
 // Ex. Immediate 1 Instruction + 1 Operand, Absolute Indexed 1 instruction + 2 operand.
-std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
+std::array<NESOpCode, 256> OpCodeTable =
 {{
     // 00
-    {{
         // Red Block
         {  "BRK", EINSTRUCTION::BRK, EAddressingMode::Implicit, 2, 7},
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 2, 3},
@@ -49,10 +48,8 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "SLO", EINSTRUCTION::SLO, EAddressingMode::YIndirectIndexed, 2, 7},
         {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XZeroPageIndexed, 2, 6},
         {  "SLO", EINSTRUCTION::SLO, EAddressingMode::YAbsoluteIndexed, 3, 6},
-        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XAbsoluteIndexed, 3, 6}
-    }},
+        {  "SLO", EINSTRUCTION::SLO, EAddressingMode::XAbsoluteIndexed, 3, 6},
     // 20
-    {{
         // Red Block
         {  "JSR", EINSTRUCTION::JSR, EAddressingMode::Absolute, 3, 6},
         {  "BIT", EINSTRUCTION::BIT, EAddressingMode::Zeropage, 2, 3},
@@ -91,10 +88,8 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "RLA", EINSTRUCTION::RLA, EAddressingMode::YIndirectIndexed, 2, 7},
         {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XZeroPageIndexed, 2, 6},
         {  "RLA", EINSTRUCTION::RLA, EAddressingMode::YAbsoluteIndexed, 3, 6},
-        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XAbsoluteIndexed, 3, 6}
-    }},
+        {  "RLA", EINSTRUCTION::RLA, EAddressingMode::XAbsoluteIndexed, 3, 6},
     // 40
-    {{
         // Red Block
         {  "RTI", EINSTRUCTION::RTI, EAddressingMode::Implicit, 1, 6},
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 2, 3},
@@ -133,10 +128,8 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "SRE", EINSTRUCTION::SRE, EAddressingMode::YIndirectIndexed, 2, 7},
         {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XZeroPageIndexed, 2, 6},
         {  "SRE", EINSTRUCTION::SRE, EAddressingMode::YAbsoluteIndexed, 3, 6},
-        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XAbsoluteIndexed, 3, 6}
-    }},
+        {  "SRE", EINSTRUCTION::SRE, EAddressingMode::XAbsoluteIndexed, 3, 6},
     // 60
-    {{
         // Red Block
         {  "RTS", EINSTRUCTION::RTS, EAddressingMode::Implicit, 1, 6},
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Zeropage, 2, 3},
@@ -175,10 +168,8 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "RRA", EINSTRUCTION::RRA, EAddressingMode::YIndirectIndexed, 2, 7},
         {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XZeroPageIndexed, 3, 6},
         {  "RRA", EINSTRUCTION::RRA, EAddressingMode::YAbsoluteIndexed, 3, 6},
-        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XAbsoluteIndexed, 3, 6}
-    }},
+        {  "RRA", EINSTRUCTION::RRA, EAddressingMode::XAbsoluteIndexed, 3, 6},
     // 80
-    {{
         // Red Block
         {  "NOP", EINSTRUCTION::NOP, EAddressingMode::Immediate, 2, 2},
         {  "STY", EINSTRUCTION::STY, EAddressingMode::Zeropage, 2, 3},
@@ -217,10 +208,8 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YIndirectIndexed, 1, 5},
         {  "SAX", EINSTRUCTION::SAX, EAddressingMode::YZeroPageIndexed, 2, 4},
         {  "TAS", EINSTRUCTION::TAS, EAddressingMode::YAbsoluteIndexed, 3, 4},
-        {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YAbsoluteIndexed, 3, 4}
-    }},
+        {  "AHX", EINSTRUCTION::AHX, EAddressingMode::YAbsoluteIndexed, 3, 4},
     // A0
-    {{
         // Red Block
         {  "LDY", EINSTRUCTION::LDY, EAddressingMode::Immediate, 2, 2},
         {  "LDY", EINSTRUCTION::LDY, EAddressingMode::Zeropage, 2, 3},
@@ -260,9 +249,7 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YZeroPageIndexed, 2, 4},
         {  "LAS", EINSTRUCTION::LAS, EAddressingMode::YAbsoluteIndexed, 3, 4},
         {  "LAX", EINSTRUCTION::LAX, EAddressingMode::YAbsoluteIndexed, 3, 4},
-    }},
     // C0
-    {{
         // Red Block
         {  "CPY", EINSTRUCTION::CPY, EAddressingMode::Immediate, 2, 2},
         {  "CPY", EINSTRUCTION::CPY, EAddressingMode::Zeropage, 2, 3},
@@ -301,10 +288,8 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "DCP", EINSTRUCTION::DCP, EAddressingMode::YIndirectIndexed, 2, 7},
         {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XZeroPageIndexed, 2, 6},
         {  "DCP", EINSTRUCTION::DCP, EAddressingMode::YAbsoluteIndexed, 3, 6},
-        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XAbsoluteIndexed, 3, 6}
-    }},
+        {  "DCP", EINSTRUCTION::DCP, EAddressingMode::XAbsoluteIndexed, 3, 6},
     // E0
-    {{
         // Red Block
         {  "CPX", EINSTRUCTION::CPX, EAddressingMode::Immediate, 2, 2},
         {  "CPX", EINSTRUCTION::CPX, EAddressingMode::Zeropage, 2, 3},
@@ -344,10 +329,7 @@ std::array<std::array<NESOpCode, 32>, 8> OpCodeTable =
         {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XZeroPageIndexed, 2, 6},
         {  "ISC", EINSTRUCTION::ISC, EAddressingMode::YAbsoluteIndexed, 3, 6},
         {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XAbsoluteIndexed, 3, 6}
-    }}
 }};
-
-
 
 NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
 {
@@ -361,7 +343,7 @@ NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
 
     int32_t X = Row;
     int32_t Y = Column + BBB;
-    NESOpCode Output = OpCodeTable[X][Y];
+    NESOpCode Output = OpCodeTable[X*32 + Y];
 
     mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Op Code Index: [{0}[{1}]]\n", X, Y);
 
