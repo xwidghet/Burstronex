@@ -344,9 +344,7 @@ NESOpCode OpCodeDecoder::DecodeOpCode(const uint8_t PCData)
     Y += (CC & 0b10) != 0 ? 16 : 0;
     Y += BBB;
 
-    NESOpCode Output = OpCodeTable[X*32 + Y];
-
     mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Op Code Index: [{0}[{1}]]\n", X, Y);
 
-    return Output;
+    return OpCodeTable[X*32 + Y];
 }

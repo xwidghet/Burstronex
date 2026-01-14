@@ -48,20 +48,24 @@ void GNES::Run(const std::string& RomPath)
             ClockTimer.Reset();
         }
 
-        if ((mCPU->GetCycleCount() - LastCPUCycles) >= mCPU->GetClockFrequency())
+        auto CyclesSinceLastSecond = mCPU->GetCycleCount() - LastCPUCycles;
+        if (CyclesSinceLastSecond >= mCPU->GetClockFrequency())
         {
-            int64_t CurrentCPUCycles = mCPU->GetCycleCount();
-            int64_t Delta = CurrentCPUCycles - LastCPUCycles;
+            // Since I only wait every 50+ cycles, and I also emulate whole instructions,
+            // there will almost always be more cycles executed than the clock frequency.
+            //
+            // So let's account for that and normalize the time for a more sane Emulator Speed statistic.
+            auto Overshoot = (CyclesSinceLastSecond - mCPU->GetClockFrequency()) / mCPU->GetClockFrequency();
 
-            mEmulatorSpeed = double(Delta) / mCPU->GetClockFrequency();
+            mEmulatorSpeed = (1.0 / EmulatorSpeedTimer.GetDeltaTime()) - Overshoot;
             mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "Emulator Speed: {0:.8f}\n", mEmulatorSpeed);
 
-            LastCPUCycles = CurrentCPUCycles;
+            LastCPUCycles = mCPU->GetCycleCount();
             EmulatorSpeedTimer.Reset();
         }
 
         // Debug Remove me later.
-        //if (mCPU->GetCycleCount() > 36554)
+        //if (mCPU->GetCycleCount() > 26554)
          //   break;
     }
 
