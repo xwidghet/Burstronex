@@ -1,12 +1,13 @@
 #include "RomLoader.h"
 
+#include "Logger.h"
+#include "RomParameters.h"
+
 #include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <vector>
-
-#include "RomParameters.h"
 
 // Currently only fully supports 2.0 specification, and readiing 1.0 header.
 ROMData RomLoader::Load(const std::string& PathToRom)
@@ -15,7 +16,7 @@ ROMData RomLoader::Load(const std::string& PathToRom)
 
 	if (!RomFile)
 	{
-		std::cout << "ROM not found at " + PathToRom << std::endl;
+		mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::ERROR, "ROM not found at {0}\n", PathToRom);
 		return ROMData();
 	}
 
@@ -25,14 +26,14 @@ ROMData RomLoader::Load(const std::string& PathToRom)
 	std::vector<char> FileBuffer(Size);
 	if (!RomFile.read(FileBuffer.data(), Size))
 	{
-		std::cout << "Failed to read ROM file at " + PathToRom << std::endl;
+		mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::ERROR, "Failed to read ROM file at {0}\n", PathToRom);
 		return ROMData();
 	}
 
-	std::cout << "ROM file size " + std::to_string(Size) << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "ROM file size {0}\n", std::to_string(Size));
 
 	std::string RomIdentifier(FileBuffer.data(), 3);
-	std::cout << "ROM Header Identifier: " + RomIdentifier << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "ROM Header Identifier: {0}\n", RomIdentifier);
 
 	// Copy pasted NES Format detection from https://www.nesdev.org/wiki/NES_2.0
 	bool biNESFormat=false;
@@ -44,7 +45,7 @@ ROMData RomLoader::Load(const std::string& PathToRom)
 		bNES20Format=true;
 
 	std::string ROMFormatString = bNES20Format ? "NES 2.0" : "NES 1.0";
-	std::cout << "ROM Format: " + ROMFormatString << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "ROM Format: {0}\n", ROMFormatString);
 
 	ROMData RomData;
 
@@ -52,7 +53,7 @@ ROMData RomLoader::Load(const std::string& PathToRom)
 	auto FileExtentionPos = PathToRom.find_last_of(".");
 	RomData.Name = PathToRom.substr(LastForwardsSlash + 1, FileExtentionPos - LastForwardsSlash - 1);
 
-	std::cout << "Loading ROM: " + RomData.Name << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "Loading ROM: {0}\n", RomData.Name);
 
 	if (bNES20Format)
 	{
@@ -64,7 +65,7 @@ ROMData RomLoader::Load(const std::string& PathToRom)
 	}
 	else
 	{
-		std::cout << "ROM file at " + PathToRom + " is not a supported ROM type." << std::endl;
+		mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::ERROR, "ROM file at {0} is not a supported ROM type\n", PathToRom);
 	}
 
 	return RomData;
@@ -87,7 +88,7 @@ ROMData RomLoader::ParseNES10ROM(const std::vector<char>& FileBuffer)
 	// Should be zero, but some rippers may have left identifiers here.
 	// Supposedly if bIsINES20Format is false I should refuse to load the ROM if anything is here (Last 4 Bytes).
 	std::string HeaderPadding(FileBuffer.data()+10, 5);
-	std::cout << "Last Header Bytes: " + HeaderPadding << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "Last Header Bytes: {0}\n", HeaderPadding);
 
 	int32_t RomParserLocation = 16;
 
@@ -302,7 +303,7 @@ ROMData RomLoader::ParseNES20ROM(const std::vector<char>& FileBuffer)
 
 		RomParserLocation += 512;
 	}
-	std::cout << "Trainer Area Size: " + std::to_string(TrainerArea.size()) << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "Trainer Area Size: {0}\n", std::to_string(TrainerArea.size()));
 
 	int32_t PrgRomSize = 0;
 	if (const bool bPrgRomSizeExponential = PrgRomSizeMSB == 0xF)
@@ -316,7 +317,7 @@ ROMData RomLoader::ParseNES20ROM(const std::vector<char>& FileBuffer)
 	{
 		PrgRomSize = 16384 * ((PrgRomSizeLSB) | (PrgRomSizeMSB << 8));
 	}
-	std::cout << "PRG Rom Size: " + std::to_string(PrgRomSize) << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "PRG Rom Size: {0}\n", std::to_string(PrgRomSize));
 
 	// Where does this go? For now...just save it I guess.
 	// Todo:: Support Vs. Dual System ROM images.
@@ -340,7 +341,7 @@ ROMData RomLoader::ParseNES20ROM(const std::vector<char>& FileBuffer)
 	{
 		ChrRomSize = 8192 * ((ChrRomSizeLSB) | (ChrRomSizeMSB << 8));
 	}
-	std::cout << "CHR Rom Size: " + std::to_string(ChrRomSize) << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "CHR Rom Size: {0}\n", std::to_string(ChrRomSize));
 
 	std::vector<char> ChrRomMemory(ChrRomSize);
 	if (ChrRomSize > 0)
@@ -349,7 +350,7 @@ ROMData RomLoader::ParseNES20ROM(const std::vector<char>& FileBuffer)
 	RomParserLocation += ChrRomSize;
 
 	int32_t MiscellaneousRomAreaSize = FileBuffer.size() - 16 - TrainerArea.size() - PrgRomMemory.size() - ChrRomMemory.size();
-	std::cout << "Miscellaneous RomArea Memory size: " + std::to_string(MiscellaneousRomAreaSize) << std::endl;
+	mLog->Log(ELOGGING_SOURCES::ROM_LOADER, ELOGGING_MODE::INFO, "Miscellaneous RomArea Memory size: {0}\n", std::to_string(MiscellaneousRomAreaSize));
 
 	std::vector<char> MiscellaneousRomAreaMemory(MiscellaneousRomAreaSize);
 

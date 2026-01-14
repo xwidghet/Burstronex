@@ -1,7 +1,6 @@
 #include "OpCodeDecoder.h"
 
-#include <iostream>
-#include <format>
+#include "Logger.h"
 
 // How many braces could a wood chuck chuck if a wood chuck could chuck wood.
 // Cycle counts are the constant cost, branches add one cycle, crossing memory pages adds one cycle.
@@ -364,7 +363,7 @@ NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
     int32_t Y = Column + BBB;
     NESOpCode Output = OpCodeTable[X][Y];
 
-    std::cout << std::format("Op Code Index: [{0}[{1}]]", X, Y) << std::endl;
+    mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Op Code Index: [{0}[{1}]]\n", X, Y);
 
     return Output;
 }

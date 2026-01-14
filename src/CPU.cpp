@@ -1,5 +1,6 @@
 #include "CPU.h"
 
+#include "Logger.h"
 #include "MemoryMapper.h"
 #include "OpCodeDecoder.h"
 #include "RomParameters.h"
@@ -7,10 +8,6 @@
 
 #include <array>
 #include <cassert>
-#include <cerrno>
-#include <chrono>
-#include <format>
-#include <iostream>
 
 std::array<double, 4> MasterClockFrequencies =
 {
@@ -96,7 +93,7 @@ void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper, PPU* PPU)
 
     DebugInit(ROM);
 
-    std::cout << std::format("Initial PC: {0:x}", mRegisters.PC) << std::endl;
+    mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::INFO, "Initial PC: {0:x}\n", mRegisters.PC);
 }
 
 void CPU::DebugInit(const ROMData& ROM)
@@ -157,8 +154,8 @@ uint8_t CPU::ExecuteNextInstruction()
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
     auto OpCode = OpCodeDecoder::DecodeOpCode(AAA, BBB, CC);
 
-    std::cout << std::format("{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}", mRegisters.PC-1, OpCode.Name,
-                             mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount) << std::endl;
+    mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}\n", mRegisters.PC-1, OpCode.Name,
+              mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount);
 
     ExecuteInstruction(&OpCode);
     mCycleCount += OpCode.Cycles;
@@ -375,7 +372,7 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
             break;
         default:
         {
-            std::cout << std::format("Unimplemented OpCode {0}", OpCode->Name) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::ERROR, "Unimplemented OpCode {0}\n", OpCode->Name);
             std::exit(1);
         }
     }
@@ -420,7 +417,7 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             // Wraps around 0x00 -> 0xFF
             Address = (int32_t(OperandLowByte) + mRegisters.X) & 0xFF;
 
-            std::cout << std::format("Read XZeroPageIndexed Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read XZeroPageIndexed Address: {0:04X}\n", Address);
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -476,7 +473,9 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             OperandHighByte = mMemoryMapper->Read8Bit(Address);
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
-            std::cout << std::format("Write XIndexedIndirect Address: {0:04X}", Address) << std::endl;
+
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Write XIndexedIndirect Address: {0:04X}\n", Address);
+
             mMemoryMapper->Write8Bit(Address, Value);
             break;
         // (d), y
@@ -496,7 +495,7 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             // Oops write cycle
             OpCode->Cycles += 1;
 
-            std::cout << std::format("Write YIndirectIndexed Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Write YIndirectIndexed Address: {0:04X}\n", Address);
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -516,7 +515,7 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
             mRegisters.PC++;
 
-            std::cout << std::format("Write Zeropage Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Write Zeropage Address: {0:04X}\n", Address);
 
             mMemoryMapper->Write8Bit(0x00 + OperandLowByte, Value);
             break;
@@ -529,8 +528,7 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
 
-            std::cout << std::format("Write Absolute Address: {0:X}, {1:02X}", Address,
-            mMemoryMapper->Read8Bit(Address)) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Write Absolute Address: {0:04X}\n", Address);
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -595,7 +593,7 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             // Wraps around 0x00 -> 0xFF
             Address = (int32_t(OperandLowByte) + mRegisters.X) & 0xFF;
 
-            std::cout << std::format("Read XZeroPageIndexed Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read XZeroPageIndexed Address: {0:04X}\n", Address);
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -652,7 +650,8 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
 
-            std::cout << std::format("Read XIndexedIndirect Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read XIndexedIndirect Address: {0:04X}\n", Address);
+
             return mMemoryMapper->Read8Bit(Address);
             break;
             // (d), y
@@ -671,7 +670,7 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
 
             OpCode->Cycles += PageCrossed(Address, Address - mRegisters.Y);
 
-            std::cout << std::format("Read YIndirectIndexed Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read YIndirectIndexed Address: {0:04X}\n", Address);
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -697,7 +696,8 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
 
             Address = 0x00 + OperandLowByte;
 
-            std::cout << std::format("Read Zeropage Address: {0:04X}", Address) << std::endl;
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read Zeropage Address: {0:04X}\n", Address);
+
             return mMemoryMapper->Read8Bit(Address);
             break;
             // a
@@ -708,8 +708,9 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             mRegisters.PC++;
 
             Address = (static_cast<uint16_t>(OperandHighByte) << 8) | static_cast<uint16_t>(OperandLowByte);
-            std::cout << std::format("Read Absolute Address: {0:X}, {1:02X}", Address,
-                mMemoryMapper->Read8Bit(Address)) << std::endl;
+
+            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read Absolute Address: {0:X}, {1:02X}\n", Address, mMemoryMapper->Read8Bit(Address));
+
             return mMemoryMapper->Read8Bit(Address);
             break;
             // *+d (label??), only used by jump commands directly

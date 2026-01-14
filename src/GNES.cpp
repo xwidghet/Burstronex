@@ -1,14 +1,14 @@
 #include "GNES.h"
 
+#include "Logger.h"
 #include "RomLoader.h"
 #include "RomParameters.h"
 #include "Timer.h"
 
-#include <iostream>
-#include <format>
-
 void GNES::Run(const std::string& RomPath)
 {
+    mLog = std::make_unique<Logger>();
+
     auto ROM = RomLoader::Load(RomPath);
 
     if (ROM.PrgRomMemory.size() == 0)
@@ -47,5 +47,5 @@ void GNES::Run(const std::string& RomPath)
     }
 
     // Headless test rom debug.
-    //std::cout << std::format("0x02: {0}, 0x03: {1}", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03)) << std::endl;
+    //mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
 }

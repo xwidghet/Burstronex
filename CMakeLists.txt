@@ -14,6 +14,7 @@ target_sources(GNES
         src/APU.cpp
         src/CPU.cpp
         src/PPU.cpp
+        src/Logger.cpp
         src/MemoryMapper.cpp
         src/OpCodeDecoder.cpp
         src/RomLoader.cpp

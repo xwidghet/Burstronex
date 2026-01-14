@@ -4,8 +4,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <iostream>
-#include <format>
 
 PPU::PPU()
 {
