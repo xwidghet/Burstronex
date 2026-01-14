@@ -383,7 +383,7 @@ public:
 
 	void Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory);
 
-	void Execute();
+	void Execute(const uint8_t CPUCycles);
 
 	bool ReadNMIOutput();
 };

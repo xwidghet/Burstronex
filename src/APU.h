@@ -65,10 +65,17 @@ class APU {
         uint8_t FrameCounter;
     } mRegisters;
 
+    // Simple solution for tracking leftover cycles from running at half the speed of the CPU.
+    // I wouldn't need to do this if the CPU ran one cycle at a time, since I could just % 2 the cycle count, but I don't do that currently.
+    // Ex.
+    //      Leftovers: 7 + 7 = 14, 14 / 2 = 7 APU cycles
+    //      Dividing: 7/2 = 3, 3 * 2 = 6 APU cycles, missing one cycle after running two 7 cycle instructions.
+    int32_t mCyclesToRun = 0;
+
 public:
     void Init(MemoryMapper* MemoryMapper);
 
-    void Execute();
+    void Execute(const uint8_t CPUCycles);
 
 private:
     void UpdateRegisters();

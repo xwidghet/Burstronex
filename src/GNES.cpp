@@ -31,11 +31,11 @@ void GNES::Run(const std::string& RomPath)
     {
         ClockTimer.Reset();
 
-        mPPU->Execute();
-        mAPU->Execute();
-
         auto CyclesUsed = mCPU->ExecuteNextInstruction();
         auto ExecutionTime = mCPU->GetCycleTime() * CyclesUsed;
+
+        mPPU->Execute(CyclesUsed);
+        mAPU->Execute(CyclesUsed);
 
         while (ClockTimer.PeakDeltaTime() < ExecutionTime)
         {

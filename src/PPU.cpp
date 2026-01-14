@@ -72,12 +72,15 @@ void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 	std::memcpy(mMemory.data(), mChrRomMemory->data(), 8192);
 }
 
-void PPU::Execute()
+void PPU::Execute(const uint8_t CPUCycles)
 {
-	// PPU ticks 3x as fast as the CPU. For now, tick 3 times for simplicity.
-	ExecuteCycle();
-	ExecuteCycle();
-	ExecuteCycle();
+	for (int i = 0; i < CPUCycles; i++)
+	{
+		// PPU ticks 3x as fast as the CPU.
+		ExecuteCycle();
+		ExecuteCycle();
+		ExecuteCycle();
+	}
 }
 
 void PPU::ExecuteCycle()

@@ -7,6 +7,7 @@
 void APU::Init(MemoryMapper* MemoryMapper)
 {
     mRAM = MemoryMapper;
+    mCyclesToRun = 0;
 
     std::memset(&mRegisters, 0, sizeof(mRegisters));
 }
@@ -41,11 +42,18 @@ void APU::UpdateRegisters()
     mRegisters.FrameCounter = mRAM->Read8Bit(FRAMECOUNTER_ADDRESS);
 }
 
-void APU::Execute()
+void APU::Execute(const uint8_t CPUCycles)
 {
     UpdateRegisters();
 
-    ExecuteCycle();
+    mCyclesToRun += CPUCycles;
+    while(mCyclesToRun > 0)
+    {
+        ExecuteCycle();
+
+        // APU operates at half the speed of the CPU.
+        mCyclesToRun -= 2;
+    }
 }
 
 void APU::ExecuteCycle()
