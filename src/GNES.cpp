@@ -2,8 +2,10 @@
 
 #include "RomLoader.h"
 #include "RomParameters.h"
+#include "Timer.h"
 
-#include <chrono>
+#include <iostream>
+#include <format>
 
 void GNES::Run(const std::string& RomPath)
 {
@@ -20,31 +22,29 @@ void GNES::Run(const std::string& RomPath)
     mCPU = std::make_unique<CPU>();
     mCPU->Init(ROM, &*mRAM, &*mPPU);
 
+    Timer ClockTimer;
+
     while (true)
     {
+        ClockTimer.Reset();
+
         // PPU ticks 3x as fast as the CPU. For now, tick 3 times for simplicity.
         mPPU->ExecuteCycle();
         mPPU->ExecuteCycle();
         mPPU->ExecuteCycle();
 
-        auto TimeAtInstruction = std::chrono::steady_clock::now();
-
         auto CyclesUsed = mCPU->ExecuteNextInstruction();
-
         auto ExecutionTime = mCPU->GetCycleTime() * CyclesUsed;
-        auto TimePassed = std::chrono::steady_clock::now() - TimeAtInstruction;
 
-        double DeltaTime = std::chrono::duration<double>(TimePassed).count();
-        while (DeltaTime < ExecutionTime)
+        while (ClockTimer.PeakDeltaTime() < ExecutionTime)
         {
-            TimePassed = std::chrono::steady_clock::now() - TimeAtInstruction;
-            DeltaTime = std::chrono::duration<double>(TimePassed).count();
         }
 
         // Debug Remove me later.
-        if (mCPU->GetCycleCount() > 36554)
-            break;
+        //if (mCPU->GetCycleCount() > 36554)
+         //   break;
     }
 
-    std::cout << std::format("0x02: {0}, 0x03: {1}", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03)) << std::endl;
+    // Headless test rom debug.
+    //std::cout << std::format("0x02: {0}, 0x03: {1}", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03)) << std::endl;
 }

@@ -15,6 +15,7 @@ target_sources(GNES
         src/PPU.cpp
         src/MemoryMapper.cpp
         src/OpCodeDecoder.cpp
-	src/RomLoader.cpp)
+        src/RomLoader.cpp
+        src/Timer.cpp)
 
 target_compile_features(GNES PRIVATE cxx_std_20)
