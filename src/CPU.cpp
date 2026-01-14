@@ -110,6 +110,11 @@ double CPU::GetCycleTime() const
     return mCycleTime;
 }
 
+double CPU::GetClockFrequency() const
+{
+    return mClockFrequency;
+}
+
 int64_t CPU::GetCycleCount() const
 {
     return mCycleCount;

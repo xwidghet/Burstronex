@@ -64,6 +64,8 @@ public :
 
     double GetCycleTime() const;
 
+    double GetClockFrequency() const;
+
     int64_t GetCycleCount() const;
 
 // Should probably move instructions to a different file, but this'll do for now.

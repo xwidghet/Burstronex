@@ -27,6 +27,9 @@ void GNES::Run(const std::string& RomPath)
 
     Timer ClockTimer;
 
+    Timer EmulatorSpeedTimer;
+    int64_t LastCPUCycles = mCPU->GetCycleCount();
+
     while (true)
     {
         ClockTimer.Reset();
@@ -39,6 +42,18 @@ void GNES::Run(const std::string& RomPath)
 
         while (ClockTimer.PeakDeltaTime() < ExecutionTime)
         {
+        }
+
+        if (EmulatorSpeedTimer.PeakDeltaTime() >= 1.0)
+        {
+            int64_t CurrentCPUCycles = mCPU->GetCycleCount();
+            int64_t Delta = CurrentCPUCycles - LastCPUCycles;
+
+            mEmulatorSpeed = double(Delta) / mCPU->GetClockFrequency();
+            mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "Emulator Speed: {0:.8f}\n", mEmulatorSpeed);
+
+            LastCPUCycles = CurrentCPUCycles;
+            EmulatorSpeedTimer.Reset();
         }
 
         // Debug Remove me later.
