@@ -56,5 +56,5 @@ struct NESOpCode {
 
 class OpCodeDecoder {
 public:
-    static NESOpCode DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC);
+    static NESOpCode DecodeOpCode(const uint8_t PCData);
 };

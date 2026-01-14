@@ -331,8 +331,12 @@ std::array<NESOpCode, 256> OpCodeTable =
         {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XAbsoluteIndexed, 3, 6}
 }};
 
-NESOpCode OpCodeDecoder::DecodeOpCode(uint8_t AAA, uint8_t BBB, uint8_t CC)
+NESOpCode OpCodeDecoder::DecodeOpCode(const uint8_t PCData)
 {
+    const uint8_t AAA = (PCData >> 5) & (0b111);
+    const uint8_t BBB = (PCData >> 2) & (0b111);
+    const uint8_t CC = (PCData) & (0b11);
+
     uint8_t X = AAA;
 
     // Implicit third push from 0b11 passing 0b01 and 0b10 tests

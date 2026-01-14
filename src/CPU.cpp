@@ -129,19 +129,11 @@ uint8_t CPU::ExecuteNextInstruction()
         mRegisters.PC = mMemoryMapper->Read16Bit(NMI_HANDLER_ADDRESS);
     }
 
-    // Debug
-    auto InstructionPC = mRegisters.PC;
-
     const uint8_t PCData = mMemoryMapper->Read8Bit(mRegisters.PC);
-
     mRegisters.PC++;
 
-    const uint8_t AAA = (PCData >> 5) & (0b111);
-    const uint8_t BBB = (PCData >> 2) & (0b111);
-    const uint8_t CC = (PCData) & (0b11);
-
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
-    auto OpCode = OpCodeDecoder::DecodeOpCode(AAA, BBB, CC);
+    auto OpCode = OpCodeDecoder::DecodeOpCode(PCData);
 
     mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}\n", mRegisters.PC-1, OpCode.Name,
               mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount);
