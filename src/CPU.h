@@ -16,6 +16,22 @@ static const uint16_t NMI_HANDLER_ADDRESS = 0xFFFA;
 
 static const uint16_t INITIAL_PC = 0xFFFC;
 
+// Windows compile fix. TODO: Remove once no iostream debug usage is in this file.
+#undef OVERFLOW
+
+enum class EStatusFlags : uint8_t {
+    CARRY = 1 << 0,
+    ZERO = 1 << 1,
+    INTERRUPT_DISABLE = 1 << 2,
+    DECIMAL = 1 << 3,
+    // No CPU effect ??
+    BFlag = 1 << 4,
+    // No CPU effect ??
+    ONEFLAG = 1 << 5,
+    OVERFLOW = 1 << 6,
+    NEGATIVE =  1 << 7
+};
+
 class CPU {
     // Are NES CPU Registers zero initialized??
     struct Registers {
@@ -89,7 +105,9 @@ private:
     // Increments OpCode's cycle count when a page is crossed.
     uint8_t ReadMemory(NESOpCode* OpCode);
 
-    static bool PageCrossed(uint16_t Left, uint16_t Right);
+    static bool PageCrossed(const uint16_t Left, const uint16_t Right);
+
+    void SetStatusBit(const EStatusFlags StatusFlag, const bool Enabled);
 
     void ASL(NESOpCode* OpCode);
     void LSR(NESOpCode* OpCode);

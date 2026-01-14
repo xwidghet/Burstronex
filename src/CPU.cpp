@@ -33,22 +33,6 @@ std::array<double, 4> ClockDivisors =
     12
 };
 
-// Windows compile fix. TODO: Remove once no iostream debug usage is in this file.
-#undef OVERFLOW
-
-enum class EStatusFlags : uint8_t {
-  CARRY = 1 << 0,
-  ZERO = 1 << 1,
-  INTERRUPT_DISABLE = 1 << 2,
-  DECIMAL = 1 << 3,
-  // No CPU effect ??
-  BFlag = 1 << 4,
-  // No CPU effect ??
-  ONEFLAG = 1 << 5,
-  OVERFLOW = 1 << 6,
-  NEGATIVE =  1 << 7
-};
-
 CPU::CPU()
 {
 }
@@ -438,12 +422,9 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             break;
         // a,x
         case EAddressingMode::XAbsoluteIndexed:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.X;
 
             // Oops cycle
@@ -453,12 +434,9 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             break;
         // a,y
         case EAddressingMode::YAbsoluteIndexed:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
 
             // Oops cycle
@@ -526,12 +504,8 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             break;
         // a
         case EAddressingMode::Absolute:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
             mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Write Absolute Address: {0:04X}\n", Address);
 
@@ -552,19 +526,11 @@ void CPU::WriteMemory(NESOpCode* OpCode, uint8_t Value)
             break;
         // (a)
         case EAddressingMode::Indirect:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-
             // 16 bit operand which points to another 16bit address which is the real target.
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
-            OperandLowByte = mMemoryMapper->Read8Bit(Address);
-            Address++;
-            OperandHighByte = mMemoryMapper->Read8Bit(Address);
-
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = mMemoryMapper->Read16Bit(Address);
 
             mMemoryMapper->Write8Bit(Address, Value);
             break;
@@ -614,12 +580,9 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             break;
             // a,x
         case EAddressingMode::XAbsoluteIndexed:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.X;
 
             // Page wrap oops cycle.
@@ -629,12 +592,9 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             break;
             // a,y
         case EAddressingMode::YAbsoluteIndexed:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
             Address += mRegisters.Y;
 
             // Page wrap oops cycle.
@@ -707,12 +667,8 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             break;
             // a
         case EAddressingMode::Absolute:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | static_cast<uint16_t>(OperandLowByte);
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
             mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read Absolute Address: {0:X}, {1:02X}\n", Address, mMemoryMapper->Read8Bit(Address));
 
@@ -732,19 +688,11 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             break;
             // (a)
         case EAddressingMode::Indirect:
-            OperandLowByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-            OperandHighByte = mMemoryMapper->Read8Bit(mRegisters.PC);
-            mRegisters.PC++;
-
             // 16 bit operand which points to another 16bit address which is the real target.
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = mMemoryMapper->Read16Bit(mRegisters.PC);
+            mRegisters.PC += 2;
 
-            OperandLowByte = mMemoryMapper->Read8Bit(Address);
-            Address++;
-            OperandHighByte = mMemoryMapper->Read8Bit(Address);
-
-            Address = (static_cast<uint16_t>(OperandHighByte) << 8) | OperandLowByte;
+            Address = mMemoryMapper->Read16Bit(Address);
 
             return mMemoryMapper->Read8Bit(Address);
             break;
@@ -754,9 +702,18 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
     return 0;
 }
 
-bool CPU::PageCrossed(uint16_t Left, uint16_t Right)
+bool CPU::PageCrossed(const uint16_t Left, const uint16_t Right)
 {
     return (Left & 0xFF00) != (Right & 0xFF00);
+}
+
+void CPU::SetStatusBit(const EStatusFlags StatusFlag, const bool Enabled)
+{
+    uint8_t StatusMask = static_cast<uint8_t>(StatusFlag);
+
+    // Branchless way to set a bit to 0 or 1.
+    mRegisters.P &= ~StatusMask;
+    mRegisters.P |= (uint8_t(0x00 - Enabled) & StatusMask);
 }
 
 void CPU::TriggerInterrupt()
@@ -788,20 +745,9 @@ void CPU::ASL(NESOpCode* OpCode)
 
     Memory = Memory << 1;
 
-    if (Carry)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-
-    if (Memory == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::CARRY, Carry);
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
@@ -822,15 +768,8 @@ void CPU::LSR(NESOpCode* OpCode)
 
     Memory = Memory >> 1;
 
-    if (Carry)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-
-    if (Memory == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
+    SetStatusBit(EStatusFlags::CARRY, Carry);
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
 
     // Since Bit 7 is always zero after RHS, this is always set to zero.
     mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
@@ -858,20 +797,9 @@ void CPU::ROL(NESOpCode* OpCode)
 
     Memory |= static_cast<uint8_t>(CPUCarry);
 
-    if (MemoryCarry)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-
-    if (Memory == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::CARRY, MemoryCarry);
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
@@ -895,20 +823,9 @@ void CPU::ROR(NESOpCode* OpCode)
 
     Memory |= (static_cast<uint8_t>(CPUCarry) << 7);
 
-    if (MemoryCarry)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-
-    if (Memory == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::CARRY, MemoryCarry);
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
@@ -1070,20 +987,9 @@ void CPU::BIT(NESOpCode* OpCode)
 
     uint8_t A = mRegisters.A & Memory;
 
-    if (A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b01000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::OVERFLOW));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, A == 0);
+    SetStatusBit(EStatusFlags::OVERFLOW, (Memory >> 6) & 0b1);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 }
 
 void CPU::BMI(NESOpCode* OpCode)
@@ -1209,20 +1115,10 @@ void CPU::CMP(NESOpCode* OpCode)
 
     int32_t A = int32_t(mRegisters.A) - Memory;
 
-    if (A >= 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
+    SetStatusBit(EStatusFlags::CARRY, A >= 0);
+    SetStatusBit(EStatusFlags::ZERO, A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, uint8_t(A) >> 7);
 
-    if (A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
 }
 
 void CPU::CPX(NESOpCode* OpCode)
@@ -1231,20 +1127,9 @@ void CPU::CPX(NESOpCode* OpCode)
 
     int32_t X = int32_t(mRegisters.X) - Memory;
 
-    if (X >= 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-
-    if (X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::CARRY, X >= 0);
+    SetStatusBit(EStatusFlags::ZERO, X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, uint8_t(X) >> 7);
 }
 
 void CPU::CPY(NESOpCode* OpCode)
@@ -1253,20 +1138,9 @@ void CPU::CPY(NESOpCode* OpCode)
 
     int32_t Y = int32_t(mRegisters.Y) - Memory;
 
-    if (Y >= 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::CARRY));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::CARRY));
-
-    if (Y == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Y & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::CARRY, Y >= 0);
+    SetStatusBit(EStatusFlags::ZERO, Y == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, uint8_t(Y) >> 7);
 }
 
 void CPU::SEI()
@@ -1311,15 +1185,8 @@ void CPU::AND(NESOpCode* OpCode)
     uint8_t Memory = ReadMemory(OpCode);
     mRegisters.A &= Memory;
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::ORA(NESOpCode* OpCode)
@@ -1327,15 +1194,8 @@ void CPU::ORA(NESOpCode* OpCode)
     uint8_t Memory = ReadMemory(OpCode);
     mRegisters.A |= Memory;
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::ADC(NESOpCode* OpCode)
@@ -1358,15 +1218,8 @@ void CPU::ADC(NESOpCode* OpCode)
 
     mRegisters.A = uint8_t(Temp & 0xFF);
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::SBC(NESOpCode* OpCode)
@@ -1390,15 +1243,8 @@ void CPU::SBC(NESOpCode* OpCode)
 
     mRegisters.A = uint8_t(Temp & 0xFF);
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::DEC(NESOpCode* OpCode)
@@ -1412,15 +1258,8 @@ void CPU::DEC(NESOpCode* OpCode)
 
     Memory -= 1;
 
-    if (Memory== 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
@@ -1433,30 +1272,16 @@ void CPU::DEX()
 {
     mRegisters.X -= 1;
 
-    if (mRegisters.X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.X >> 7);
 }
 
 void CPU::DEY()
 {
     mRegisters.Y -= 1;
 
-    if (mRegisters.Y == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.Y & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.Y == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.Y >> 7);
 }
 
 void CPU::EOR(NESOpCode* OpCode)
@@ -1465,15 +1290,8 @@ void CPU::EOR(NESOpCode* OpCode)
 
     mRegisters.A ^= Memory;
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::INC(NESOpCode* OpCode)
@@ -1487,15 +1305,8 @@ void CPU::INC(NESOpCode* OpCode)
 
     Memory += 1;
 
-    if (Memory == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
@@ -1508,75 +1319,40 @@ void CPU::INX()
 {
     mRegisters.X += 1;
 
-    if (mRegisters.X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.X >> 7);
 }
 
 void CPU::INY()
 {
     mRegisters.Y += 1;
 
-    if (mRegisters.Y == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.Y & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.Y == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.Y >> 7);
 }
 
 void CPU::LDA(NESOpCode* OpCode)
 {
     mRegisters.A = ReadMemory(OpCode);
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::LDX(NESOpCode* OpCode)
 {
     mRegisters.X = ReadMemory(OpCode);
 
-    if (mRegisters.X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.X >> 7);
 }
 
 void CPU::LDY(NESOpCode* OpCode)
 {
     mRegisters.Y = ReadMemory(OpCode);
 
-    if (mRegisters.Y == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.Y & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.Y == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.Y >> 7);
 }
 
 void CPU::PHA()
@@ -1596,15 +1372,8 @@ void CPU::PLA()
 {
     mRegisters.A = PopStack();
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::PLP()
@@ -1650,45 +1419,24 @@ void CPU::TAX()
 {
     mRegisters.X = mRegisters.A;
 
-    if (mRegisters.X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.X >> 7);
 }
 
 void CPU::TAY()
 {
     mRegisters.Y = mRegisters.A;
 
-    if (mRegisters.Y == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.Y & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.Y == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.Y >> 7);
 }
 
 void CPU::TSX()
 {
     mRegisters.X = mRegisters.S;
 
-    if (mRegisters.X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.X >> 7);
 }
 
 void CPU::TXS()
@@ -1700,36 +1448,21 @@ void CPU::TXA()
 {
     mRegisters.A = mRegisters.X;
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::TYA()
 {
     mRegisters.A = mRegisters.Y;
 
-    if (mRegisters.A == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.A & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.A == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.A >> 7);
 }
 
 void CPU::NOP(NESOpCode* OpCode)
 {
     ReadMemory(OpCode);
-    //mRegisters.PC += OpCode->OperandByteCount - 1;
 }
 
 void CPU::ALR(NESOpCode* OpCode)
@@ -1792,15 +1525,8 @@ void CPU::ARR(NESOpCode* OpCode)
     else
         mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::OVERFLOW));
 
-    if (Memory == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (Memory & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, Memory == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, Memory >> 7);
 
     mRegisters.PC = TargetPC;
     WriteMemory(OpCode, Memory);
@@ -1821,15 +1547,8 @@ void CPU::AXS(NESOpCode* OpCode)
 
     mRegisters.X = uint8_t(X);
 
-    if (mRegisters.X == 0)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::ZERO));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::ZERO));
-
-    if (mRegisters.X & 0b10000000)
-        mRegisters.P |= static_cast<uint8_t>((EStatusFlags::NEGATIVE));
-    else
-        mRegisters.P &= ~static_cast<uint8_t>((EStatusFlags::NEGATIVE));
+    SetStatusBit(EStatusFlags::ZERO, mRegisters.X == 0);
+    SetStatusBit(EStatusFlags::NEGATIVE, mRegisters.X >> 7);
 }
 
 void CPU::LAX(NESOpCode* OpCode)
