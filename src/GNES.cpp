@@ -48,7 +48,7 @@ void GNES::Run(const std::string& RomPath)
             ClockTimer.Reset();
         }
 
-        if (EmulatorSpeedTimer.PeakDeltaTime() >= 1.0)
+        if ((mCPU->GetCycleCount() - LastCPUCycles) >= mCPU->GetClockFrequency())
         {
             int64_t CurrentCPUCycles = mCPU->GetCycleCount();
             int64_t Delta = CurrentCPUCycles - LastCPUCycles;
