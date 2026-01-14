@@ -1,4 +1,6 @@
 #pragma once
+
+#include "APU.h"
 #include "CPU.h"
 #include "PPU.h"
 
@@ -9,6 +11,7 @@
 
 
 class GNES {
+    std::unique_ptr<APU> mAPU;
     std::unique_ptr<CPU> mCPU;
     std::unique_ptr<PPU> mPPU;
 

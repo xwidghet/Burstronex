@@ -374,14 +374,16 @@ class PPU {
 
 	const std::vector<char>* mChrRomMemory;
 
-public:
-	PPU(MemoryMapper* RAM);
-
-	void Init(const std::vector<char>* ChrRomMemory);
-
 	void ExecuteCycle();
 
 	void ExecuteRendering(const bool bIsRenderingEnabled);
+
+public:
+	PPU();
+
+	void Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory);
+
+	void Execute();
 
 	bool ReadNMIOutput();
 };

@@ -16,8 +16,11 @@ void GNES::Run(const std::string& RomPath)
 
     mRAM = std::make_unique<MemoryMapper>(ROM.ChrRomMemory, ROM.PrgRomMemory);
 
-    mPPU = std::make_unique<PPU>(&*mRAM);
-    mPPU->Init(&ROM.ChrRomMemory);
+    mAPU = std::make_unique<APU>();
+    mAPU->Init(&*mRAM);
+
+    mPPU = std::make_unique<PPU>();
+    mPPU->Init(&*mRAM, &ROM.ChrRomMemory);
 
     mCPU = std::make_unique<CPU>();
     mCPU->Init(ROM, &*mRAM, &*mPPU);
@@ -28,10 +31,8 @@ void GNES::Run(const std::string& RomPath)
     {
         ClockTimer.Reset();
 
-        // PPU ticks 3x as fast as the CPU. For now, tick 3 times for simplicity.
-        mPPU->ExecuteCycle();
-        mPPU->ExecuteCycle();
-        mPPU->ExecuteCycle();
+        mPPU->Execute();
+        mAPU->Execute();
 
         auto CyclesUsed = mCPU->ExecuteNextInstruction();
         auto ExecutionTime = mCPU->GetCycleTime() * CyclesUsed;

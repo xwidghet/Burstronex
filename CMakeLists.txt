@@ -11,6 +11,7 @@ target_sources(GNES
     PRIVATE
         src/main.cpp
         src/GNES.cpp
+        src/APU.cpp
         src/CPU.cpp
         src/PPU.cpp
         src/MemoryMapper.cpp

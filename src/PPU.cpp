@@ -7,7 +7,7 @@
 #include <iostream>
 #include <format>
 
-PPU::PPU(MemoryMapper* RAM)
+PPU::PPU()
 {
 	// 16KB address space, 0x0000 - 0x3FFF. Accesed by PPU or CPU via memory mapped registers 0x2006 and 0x2007.
 	// 0x0000 - 0x1FFF - CHR ROM / CHR RAM, often with bank switching.
@@ -35,12 +35,12 @@ PPU::PPU(MemoryMapper* RAM)
 		{0x3F20, 0x00E0}
 	}};
 
-	mRAM = RAM;
+	mRAM = nullptr;
 
 	mChrRomMemory = nullptr;
 }
 
-void PPU::Init(const std::vector<char>* ChrRomMemory)
+void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 {
 	// What are the real initial values of these?
 	mRegisters.v = 0;
@@ -64,10 +64,20 @@ void PPU::Init(const std::vector<char>* ChrRomMemory)
 
 	mbPostFirstPreRenderScanline = false;
 
+	mRAM = RAM;
+
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	
 	std::memcpy(mMemory.data(), mChrRomMemory->data(), 8192);
+}
+
+void PPU::Execute()
+{
+	// PPU ticks 3x as fast as the CPU. For now, tick 3 times for simplicity.
+	ExecuteCycle();
+	ExecuteCycle();
+	ExecuteCycle();
 }
 
 void PPU::ExecuteCycle()
