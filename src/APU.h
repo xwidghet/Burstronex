@@ -4,6 +4,8 @@
 
 class MemoryMapper;
 
+enum class ECPU_TIMING;
+
 static const uint16_t PULSE1_TIMER_ADDRESS = 0x4000;
 static const uint16_t PULSE1_LENGTHCOUNTER_ADDRESS = 0x4001;
 static const uint16_t PULSE1_ENVELOPE_ADDRESS = 0x4002;
@@ -32,6 +34,12 @@ static const uint16_t DMC_OUTPUTUNIT_ADDRESS = 0x4013;
 
 static const uint16_t STATUS_ADDRESS = 0x4015;
 static const uint16_t FRAMECOUNTER_ADDRESS = 0x4017;
+
+static const uint32_t NTSC_FRAME_INTERRUPT_CYCLE_COUNT = 29830;
+static const uint32_t PAL_FRAME_INTERRUPT_CYCLE_COUNT = 33254;
+
+static const uint32_t NTSC_SEQUENCE_STEP_CYCLE_COUNT = 3728;
+static const uint32_t PAL_SEQUENCE_STEP_CYCLE_COUNT = 4156;
 
 // PULSE_TIMER_ADDRESS
 enum class EPULSE_TIMER_MASKS : uint8_t {
@@ -246,7 +254,7 @@ class APU {
         uint8_t DMC_SampleBuffer;
         uint8_t DMC_OutputUnit;
 
-        uint8_t ChannelEnable_LengthCounterStatus;
+        uint8_t Status;
         uint8_t FrameCounter;
     } mRegisters;
 
@@ -257,8 +265,15 @@ class APU {
     //      Dividing: 7/2 = 3, 3 * 2 = 6 APU cycles, missing one cycle after running two 7 cycle instructions.
     int32_t mCyclesToRun = 0;
 
+    uint32_t mCyclesSinceFrameInterrupt = 0;
+    uint32_t mFrameInterruptCycleCount = 0;
+    uint32_t mSequenceCycleCount = 0;
+    uint32_t mSequenceCycleInterval = 0;
+
+    uint8_t mSequenceIndex = 0;
+
 public:
-    void Init(MemoryMapper* MemoryMapper);
+    void Init(MemoryMapper* MemoryMapper, const ECPU_TIMING Timing);
 
     void Execute(const uint8_t CPUCycles);
 
@@ -266,4 +281,10 @@ private:
     void UpdateRegisters();
 
     void ExecuteCycle();
+
+    void ExecuteSequencer();
+
+    void ExecuteMode0Sequencer();
+
+    void ExecuteMode1Sequencer();
 };

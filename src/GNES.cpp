@@ -17,13 +17,15 @@ void GNES::Run(const std::string& RomPath)
     mRAM = std::make_unique<MemoryMapper>(ROM.ChrRomMemory, ROM.PrgRomMemory);
 
     mAPU = std::make_unique<APU>();
-    mAPU->Init(&*mRAM);
+    mAPU->Init(&*mRAM, ROM.CPUTimingMode);
 
     mPPU = std::make_unique<PPU>();
     mPPU->Init(&*mRAM, &ROM.ChrRomMemory);
 
     mCPU = std::make_unique<CPU>();
     mCPU->Init(ROM, &*mRAM, &*mPPU);
+
+    mRAM->Init(&*mPPU);
 
     Timer ClockTimer;
 

@@ -386,4 +386,8 @@ public:
 	void Execute(const uint8_t CPUCycles);
 
 	bool ReadNMIOutput();
+
+	void ClearWRegister();
+
+	void ToggleWRegister();
 };

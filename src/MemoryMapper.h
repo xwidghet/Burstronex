@@ -5,6 +5,8 @@
 
 #include "OpCodeDecoder.h"
 
+class PPU;
+
 class MemoryMapper {
     std::vector<uint8_t> mMemory;
 
@@ -14,8 +16,12 @@ class MemoryMapper {
     std::vector<char> mChrRomMemory;
     std::vector<char> mPrgRomMemory;
 
+    PPU* mPPU;
+
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
+
+    void Init(PPU* PPU);
 
     uint32_t MapAddress(uint32_t Address);
 
@@ -27,9 +33,11 @@ public:
 
     void Write16Bit(const uint32_t Address, uint16_t Value);
 
-    uint32_t Wrap8Bit(uint32_t Address, const EAddressingMode AddressingMode);
+    // Used for APU/PPU to avoid read/write side-effects, since the memory is supposed to be mapped to them.
+    uint8_t ReadRegister(const uint32_t Address);
 
-    uint32_t Wrap16Bit(uint32_t Address, const EAddressingMode AddressingMode);
+    // Used for APU/PPU to avoid read/write side-effects, since the memory is supposed to be mapped to them.
+    void WriteRegister(const uint32_t Address, uint8_t Value);
 
     const uint16_t GetPrgRomLocation() const;
 

@@ -84,13 +84,13 @@ void PPU::Execute(const uint8_t CPUCycles)
 void PPU::ExecuteCycle()
 {
 	// Wasteful to do all these reads, but I feel like it will make it nicer to program
-	mPPUCTRL = mRAM->Read8Bit(PPUCTRL_ADDRESS);
-	mPPUMASK = mRAM->Read8Bit(PPUMASK_ADDRESS);
-	mPPUSTATUS = mRAM->Read8Bit(PPUSTATUS_ADDRESS);
-	mOAMADDR = mRAM->Read8Bit(OAMADDR_ADDRESS);
-	mPPU_SCROLL_ADDR_LATCH = mRAM->Read8Bit(PPU_SCROLL_ADDR_LATCH_ADDRESS);
-	mPPUSCROLL = mRAM->Read8Bit(PPUSCROLL_ADDRESS);
-	mPPUADDR = mRAM->Read8Bit(PPUADDR_ADDRESS);
+	mPPUCTRL = mRAM->ReadRegister(PPUCTRL_ADDRESS);
+	mPPUMASK = mRAM->ReadRegister(PPUMASK_ADDRESS);
+	mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
+	mOAMADDR = mRAM->ReadRegister(OAMADDR_ADDRESS);
+	mPPU_SCROLL_ADDR_LATCH = mRAM->ReadRegister(PPU_SCROLL_ADDR_LATCH_ADDRESS);
+	mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
+	mPPUADDR = mRAM->ReadRegister(PPUADDR_ADDRESS);
 
 	if (mbPostFirstPreRenderScanline == false)
 	{
@@ -122,14 +122,14 @@ void PPU::ExecuteCycle()
 		mbVBlankFlag = true;
 
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-		mRAM->Write8Bit(PPUSTATUS_ADDRESS, mPPUSTATUS);
+		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
 	}
 	if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
 	{
 		mbVBlankFlag = false;
 
 		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-		mRAM->Write8Bit(PPUSTATUS_ADDRESS, mPPUSTATUS);
+		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
 	}
 
 	if (bIsVBLANK == false)
@@ -174,4 +174,14 @@ bool PPU::ReadNMIOutput()
 	}
 
 	return bIsNMIEnabled;
+}
+
+void PPU::ClearWRegister()
+{
+	mRegisters.w = false;
+}
+
+void PPU::ToggleWRegister()
+{
+	mRegisters.w = ~mRegisters.w;
 }

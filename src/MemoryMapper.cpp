@@ -1,4 +1,7 @@
 #include "MemoryMapper.h"
+
+#include "APU.h"
+#include "PPU.h"
 #include "OpCodeDecoder.h"
 
 #include <cstring>
@@ -21,6 +24,11 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     mChrRomLocation = 0x0000;
 }
 
+void MemoryMapper::Init(PPU* PPU)
+{
+    mPPU = PPU;
+}
+
 uint32_t MemoryMapper::MapAddress(uint32_t Address)
 {
     // Internal RAM, 0x0000 - 0x07FF, Mirrored up to 0x1FFF
@@ -38,7 +46,19 @@ uint32_t MemoryMapper::MapAddress(uint32_t Address)
 
 uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
 {
-    return mMemory[MapAddress(Address)];
+    uint8_t Value = mMemory[MapAddress(Address)];
+
+    if (Address == STATUS_ADDRESS)
+    {
+        mMemory[MapAddress(Address)] = Value & (~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT));
+    }
+    else if (Address == PPUSTATUS_ADDRESS)
+    {
+        mMemory[MapAddress(Address)] = Value & (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
+        mPPU->ClearWRegister();
+    }
+
+    return Value;
 }
 
 void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
@@ -46,6 +66,12 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
     // Cannot write to Program Read Only Memory (ROM)
     if (Address >= mPrgRomLocation)
         return;
+
+    if (Address == PPUADDR_ADDRESS || Address == PPUSCROLL_ADDRESS)
+    {
+        mMemory[MapAddress(Address)] = Value & (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
+        mPPU->ToggleWRegister();
+    }
 
     mMemory[MapAddress(Address)] = Value;
 }
@@ -72,37 +98,20 @@ void MemoryMapper::Write16Bit(const uint32_t Address, uint16_t Value)
     mMemory[MapAddress(Address+1)] = High;
 }
 
-uint32_t MemoryMapper::Wrap8Bit(uint32_t Address, EAddressingMode AddressingMode)
+uint8_t MemoryMapper::ReadRegister(const uint32_t Address)
 {
-    switch (AddressingMode)
-    {
-        case EAddressingMode::XIndexedIndirect:
-        case EAddressingMode::YIndirectIndexed:
-            // Wrap within Zero Page ??
-            break;
-        default:{
-            Address = Address & 0xFF;
-        }
-    }
-
-    return Address;
+    return mMemory[MapAddress(Address)];
 }
 
-uint32_t MemoryMapper::Wrap16Bit(uint32_t Address, EAddressingMode AddressingMode)
+void MemoryMapper::WriteRegister(const uint32_t Address, uint8_t Value)
 {
-    switch (AddressingMode)
-    {
-        case EAddressingMode::XIndexedIndirect:
-        case EAddressingMode::YIndirectIndexed:
-            // Wrap within Zero Page ??
-            break;
-        default:{
-            Address = Address & 0xFFFF;
-        }
-    }
+    // Cannot write to Program Read Only Memory (ROM)
+    if (Address >= mPrgRomLocation)
+        return;
 
-    return Address;
+    mMemory[MapAddress(Address)] = Value;
 }
+
 
 const uint16_t MemoryMapper::GetPrgRomLocation() const
 {
