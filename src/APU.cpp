@@ -38,7 +38,7 @@ void APU::UpdateRegisters()
     mRegisters.DMC_SampleBuffer = mRAM->Read8Bit(DMC_SAMPLEBUFFER_ADDRESS);
     mRegisters.DMC_OutputUnit = mRAM->Read8Bit(DMC_OUTPUTUNIT_ADDRESS);
 
-    mRegisters.ChannelEnable_LengthCounterStatus = mRAM->Read8Bit(CHANNELENABLE_LENGTHCOUNTERSTATUS_ADDRESS);
+    mRegisters.ChannelEnable_LengthCounterStatus = mRAM->Read8Bit(STATUS_ADDRESS);
     mRegisters.FrameCounter = mRAM->Read8Bit(FRAMECOUNTER_ADDRESS);
 }
 
