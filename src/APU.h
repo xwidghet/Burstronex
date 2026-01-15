@@ -288,4 +288,9 @@ private:
     void ExecuteMode0Sequencer();
 
     void ExecuteMode1Sequencer();
+
+    // Pulse, Triangle, and Noise should be 0-15
+    // DMC should be 0-127
+    // DAC Output is a float in the range [0.0, 1.0]
+    float DACOutput(uint8_t Pulse1, uint8_t Pulse2, uint8_t Triangle, uint8_t Noise, uint8_t DMC);
 };

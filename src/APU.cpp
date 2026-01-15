@@ -6,6 +6,34 @@
 
 #include <cstring>
 
+constexpr std::array<float, 31> GenerateSquareTable()
+{
+    std::array<float, 31> SquareTable = {};
+    for (int i = 1; i <= 31; i++)
+    {
+        SquareTable[i-1] = 95.52 / (8128.0 / double(i) + 100);
+    }
+
+    return SquareTable;
+}
+
+constexpr std::array<float, 203>  GenerateTND()
+{
+    std::array<float, 203> TNDTable = {};
+    for (int i = 1; i <= 203; i++)
+    {
+        TNDTable[i-1] = 163.67 / (24329.0 / double(i) + 100);
+    }
+
+    return TNDTable;
+}
+
+// Pulse1 and Pulse2 square wave DAC Output Table.
+static constexpr std::array<float, 31> SquareLUT = GenerateSquareTable();
+
+// Triangle, Noise, and DMC DAC Output Table
+static constexpr std::array<float, 203> TNDLUT =  GenerateTND();
+
 void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
 {
     mRAM = MemoryMapper;
@@ -135,4 +163,14 @@ void APU::ExecuteMode1Sequencer()
     }
 
     mSequenceIndex = (mSequenceIndex + 1) % 5;
+}
+
+float APU::DACOutput(uint8_t Pulse1, uint8_t Pulse2, uint8_t Triangle, uint8_t Noise, uint8_t DMC)
+{
+    // TODO: Some sort of mixer probably
+    float PulseOut = SquareLUT[Pulse1 + Pulse2];
+
+    float TNDOut = TNDLUT[3*Triangle + 2*Noise + DMC];
+
+    return PulseOut + TNDOut;
 }
