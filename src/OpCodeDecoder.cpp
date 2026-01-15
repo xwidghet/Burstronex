@@ -340,8 +340,8 @@ NESOpCode OpCodeDecoder::DecodeOpCode(const uint8_t PCData)
     uint8_t X = AAA;
 
     // Implicit third push from 0b11 passing 0b01 and 0b10 tests
-    uint8_t Y = (CC & 0b01) != 0 ? 8 : 0;
-    Y += (CC & 0b10) != 0 ? 16 : 0;
+    uint8_t Y = ((CC & 0b01) != 0) * 8;
+    Y += ((CC & 0b10) != 0) * 16;
     Y += BBB;
 
     mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Op Code Index: [{0}[{1}]]\n", X, Y);
