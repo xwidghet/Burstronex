@@ -1,6 +1,7 @@
 #include "MemoryMapper.h"
 
 #include "APU.h"
+#include "CPU.h"
 #include "PPU.h"
 #include "OpCodeDecoder.h"
 
@@ -24,8 +25,9 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     mChrRomLocation = 0x0000;
 }
 
-void MemoryMapper::Init(PPU* PPU)
+void MemoryMapper::Init(CPU* CPU, PPU* PPU)
 {
+    mCPU = CPU;
     mPPU = PPU;
 }
 
@@ -52,6 +54,7 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
     if (Address == STATUS_ADDRESS)
     {
         mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT));
+        mCPU->SetIRQ(false);
     }
     else if (Address == PPUSTATUS_ADDRESS)
     {

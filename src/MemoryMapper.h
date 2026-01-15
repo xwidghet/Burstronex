@@ -5,6 +5,7 @@
 
 #include "OpCodeDecoder.h"
 
+class CPU;
 class PPU;
 
 class MemoryMapper {
@@ -16,12 +17,13 @@ class MemoryMapper {
     std::vector<char> mChrRomMemory;
     std::vector<char> mPrgRomMemory;
 
+    CPU* mCPU;
     PPU* mPPU;
 
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
 
-    void Init(PPU* PPU);
+    void Init(CPU* CPU, PPU* PPU);
 
     uint32_t MapAddress(uint32_t Address);
 

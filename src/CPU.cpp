@@ -104,6 +104,11 @@ int64_t CPU::GetCycleCount() const
     return mCycleCount;
 }
 
+void CPU::SetIRQ(bool bValue)
+{
+    bIRQTriggered = bValue;
+}
+
 uint8_t CPU::ExecuteNextInstruction()
 {
     // Interrupts
@@ -111,6 +116,12 @@ uint8_t CPU::ExecuteNextInstruction()
     if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::INTERRUPT_DISABLE)) == 0)
     {
         // Other Interrupts (IRQs)
+        if (bIRQTriggered)
+        {
+            TriggerInterrupt();
+
+            mRegisters.PC = mMemoryMapper->Read16Bit(IRQ_HANDLER_ADDRESS);
+        }
     }
 
     // Non-Maskable Interrupts cannot be ignored by the CPU

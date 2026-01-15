@@ -14,6 +14,9 @@ class PPU;
 // 0xFFFA - 0xFFFB
 static const uint16_t NMI_HANDLER_ADDRESS = 0xFFFA;
 
+// 0xFFFE–0xFFFF
+static const uint16_t IRQ_HANDLER_ADDRESS = 0xFFFE;
+
 static const uint16_t INITIAL_PC = 0xFFFC;
 
 // Windows compile fix. TODO: Remove once no iostream debug usage is in this file.
@@ -63,6 +66,8 @@ class CPU {
 
     int64_t mCycleCount = 0;
 
+    bool bIRQTriggered = false;
+
     MemoryMapper* mMemoryMapper;
 
     // Needed for reading the NMI Pin, could refactor this later with like...a pin manager?
@@ -83,6 +88,8 @@ public :
     double GetClockFrequency() const;
 
     int64_t GetCycleCount() const;
+
+    void SetIRQ(bool bValue);
 
 // Should probably move instructions to a different file, but this'll do for now.
 private:

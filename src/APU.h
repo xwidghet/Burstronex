@@ -3,7 +3,7 @@
 #include <cstdint>
 
 class MemoryMapper;
-
+class CPU;
 enum class ECPU_TIMING;
 
 static const uint16_t PULSE1_TIMER_ADDRESS = 0x4000;
@@ -228,6 +228,7 @@ enum class EFRAME_COUNTER_MASKS : uint8_t {
 
 class APU {
     MemoryMapper* mRAM;
+    CPU* mCPU;
 
     struct ApuRegisters {
         uint8_t Pulse1_Timer;
@@ -273,7 +274,7 @@ class APU {
     uint8_t mSequenceIndex = 0;
 
 public:
-    void Init(MemoryMapper* MemoryMapper, const ECPU_TIMING Timing);
+    void Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing);
 
     void Execute(const uint8_t CPUCycles);
 

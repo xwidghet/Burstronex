@@ -6,9 +6,11 @@
 
 #include <cstring>
 
-void APU::Init(MemoryMapper* MemoryMapper, const ECPU_TIMING Timing)
+void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
 {
     mRAM = MemoryMapper;
+    mCPU = CPU;
+
     mCyclesToRun = 0;
     mCyclesSinceFrameInterrupt = 0;
     mSequenceCycleCount = 0;
@@ -93,6 +95,7 @@ void APU::ExecuteSequencer()
         {
             mRegisters.Status |= static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
             mRAM->WriteRegister(STATUS_ADDRESS, mRegisters.Status);
+            mCPU->SetIRQ(true);
         }
     }
 
