@@ -278,6 +278,8 @@ class APU {
     uint32_t mSequenceCycleCount = 0;
     uint32_t mSequenceCycleInterval = 0;
 
+    uint64_t mAudioFrameCount = 0;
+
     uint8_t mSequenceIndex = 0;
 
     std::unique_ptr<ma_context> mAudioContext;
@@ -285,14 +287,13 @@ class APU {
     bool bStartedDevice = false;
 
     // Circular buffer of two audio frames. Ideally it stays roughly 1 frame full.
-    CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*2> mAudioBuffer;
+    CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*16> mAudioBuffer;
 
     // Source Rate (CPU Frequency) / Target Sample Rate (48000)
     float mDownsampleRatio = 0.f;
 
 public:
     APU();
-
     ~APU();
 
     void Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing);
@@ -300,6 +301,8 @@ public:
     void Execute(const uint8_t CPUCycles);
 
 private:
+    void InitAudio();
+
     void UpdateRegisters();
 
     void ExecuteCycle();
