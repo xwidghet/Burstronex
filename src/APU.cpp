@@ -45,15 +45,50 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     // frameCount frames.
     auto& Buffer = *reinterpret_cast<CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*2>*>(pDevice->pUserData);
 
+    float* OutputBuffer = (float*)pOutput;
     while(frameCount > 0)
     {
+        //*OutputBuffer = Buffer.Pop();
+        *OutputBuffer = (SquareLUT[std::rand() % 10]) * 2.f - 1.f;
+        OutputBuffer++;
         frameCount--;
     }
 }
 
 APU::APU()
 {
+    ma_context_config contextConfig = ma_context_config_init();
+    contextConfig.alsa = {true};
+
+    mAudioContext = std::make_unique<ma_context>();
+
+    ma_backend backends[] = {
+        ma_backend_alsa,
+        ma_backend_pulseaudio,
+        ma_backend_wasapi,
+        ma_backend_dsound
+    };
+
+    if (ma_context_init(backends, 3, NULL, &*mAudioContext) != MA_SUCCESS) {
+        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to initialize miniaudio context\n");
+    }
+
+    ma_device_info* pPlaybackInfos;
+    ma_uint32 playbackCount;
+    ma_device_info* pCaptureInfos;
+    ma_uint32 captureCount;
+    if (ma_context_get_devices(&*mAudioContext, &pPlaybackInfos, &playbackCount, &pCaptureInfos, &captureCount) != MA_SUCCESS) {
+        // Error.
+    }
+
+    for (ma_uint32 iDevice = 0; iDevice < playbackCount; iDevice += 1) {
+        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "{0} - {1}\n", iDevice, pPlaybackInfos[iDevice].name);
+    }
+
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
+
+    // Hardcoded my device since ALSA refuses to use the correct device.
+    config.playback.pDeviceID = &pPlaybackInfos[17].id;
     config.playback.format   = ma_format_f32;   // Set to ma_format_unknown to use the device's native format.
     config.playback.channels = 2;               // Set to 0 to use the device's native channel count.
     config.sampleRate        = TARGET_SAMPLE_RATE;           // Set to 0 to use the device's native sample rate.
@@ -61,7 +96,7 @@ APU::APU()
     config.pUserData         = &mAudioBuffer;   // Can be accessed from the device object (device.pUserData).
 
     mAudioDevice = std::make_unique<ma_device>();
-    ma_result result = ma_device_init(NULL, &config, &*mAudioDevice);
+    ma_result result = ma_device_init(&*mAudioContext, &config, &*mAudioDevice);
     if (result != MA_SUCCESS) {
         mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to initialize miniaudio device: {0}\n", static_cast<uint8_t>(result));
     }
@@ -134,7 +169,7 @@ void APU::Execute(const uint8_t CPUCycles)
     UpdateRegisters();
 
     mCyclesToRun += CPUCycles;
-    mCyclesSinceFrameInterrupt += mCyclesSinceFrameInterrupt;
+    mCyclesSinceFrameInterrupt += CPUCycles;
     while(mCyclesToRun > 0)
     {
         ExecuteCycle();
@@ -170,6 +205,7 @@ void APU::ExecuteSequencer()
         // Start audio device once we have one audio frame of data generated.
         if (!bStartedDevice)
         {
+            mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Started Audio Device");
             ma_device_start(&*mAudioDevice);
             bStartedDevice = true;
         }

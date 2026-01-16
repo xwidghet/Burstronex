@@ -8,6 +8,7 @@ class MemoryMapper;
 class CPU;
 enum class ECPU_TIMING;
 
+class ma_context;
 class ma_device;
 
 static const uint32_t TARGET_SAMPLE_RATE = 48000;
@@ -279,6 +280,7 @@ class APU {
 
     uint8_t mSequenceIndex = 0;
 
+    std::unique_ptr<ma_context> mAudioContext;
     std::unique_ptr<ma_device> mAudioDevice;
     bool bStartedDevice = false;
 
