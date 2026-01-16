@@ -17,7 +17,7 @@ public:
         mData[Head] = Value;
 
         Head = (Head + 1) % N;
-       // assert(Head != Tail);
+        assert(Head != Tail);
     }
 
     T Pop()

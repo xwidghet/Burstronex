@@ -201,6 +201,23 @@ void APU::Execute(const uint8_t CPUCycles)
         // APU operates at half the speed of the CPU.
         mCyclesToRun -= 2;
     }
+
+    // Every CPU Cycle the APU outputs one sample
+    for (int i = 0; i < CPUCycles; i++)
+    {
+        float Radian = std::fmod(double(mCPU->GetCycleCount() - CPUCycles + i), mCPU->GetClockFrequency());
+        Radian /= mCPU->GetClockFrequency();
+
+        /*
+         float Pulse1 = (sin(Radian* * 6.283185307f) + 1) * 7;
+
+         float NextSample = DACOutput(Pulse1, Pulse1, Pulse1, Pulse1, Pulse1*2);
+         NextSample = NextSample*2.f - 1.f;
+         */
+
+        float Pulse1 = sin(Radian * 6.283185307f * (200 + 25*cos(6.283185307f*Radian)));
+        mAudioBuffer.Push(Pulse1);
+    }
 }
 
 void APU::ExecuteCycle()
@@ -242,19 +259,6 @@ void APU::ExecuteSequencer()
         else
             ExecuteMode1Sequencer();
     }
-
-    float Radian = std::fmod(double(mCPU->GetCycleCount()), mCPU->GetClockFrequency());
-    Radian /= mCPU->GetClockFrequency();
-
-    /*
-    float Pulse1 = (sin(Radian * 6.283185307f) + 1) * 7;
-
-    float NextSample = DACOutput(Pulse1, Pulse1, Pulse1, Pulse1, Pulse1*2);
-    NextSample = NextSample*2.f - 1.f;
-    */
-
-    float Pulse1 = sin(Radian * 6.283185307f * 70);
-    mAudioBuffer.Push(Pulse1);
 }
 
 void APU::ExecuteMode0Sequencer()
