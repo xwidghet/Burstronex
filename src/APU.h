@@ -1,10 +1,16 @@
 #pragma once
 
+#include "CircularBuffer.h"
 #include <cstdint>
+#include <memory>
 
 class MemoryMapper;
 class CPU;
 enum class ECPU_TIMING;
+
+class ma_device;
+
+static const uint32_t TARGET_SAMPLE_RATE = 48000;
 
 static const uint16_t PULSE1_TIMER_ADDRESS = 0x4000;
 static const uint16_t PULSE1_LENGTHCOUNTER_ADDRESS = 0x4001;
@@ -273,7 +279,20 @@ class APU {
 
     uint8_t mSequenceIndex = 0;
 
+    std::unique_ptr<ma_device> mAudioDevice;
+    bool bStartedDevice = false;
+
+    // Circular buffer of two audio frames. Ideally it stays roughly 1 frame full.
+    CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*2> mAudioBuffer;
+
+    // Source Rate (CPU Frequency) / Target Sample Rate (48000)
+    float mDownsampleRatio = 0.f;
+
 public:
+    APU();
+
+    ~APU();
+
     void Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing);
 
     void Execute(const uint8_t CPUCycles);

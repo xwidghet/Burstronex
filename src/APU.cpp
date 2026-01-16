@@ -1,8 +1,12 @@
 #include "APU.h"
 
 #include "CPU.h"
+#include "CircularBuffer.h"
+#include "Logger.h"
 #include "MemoryMapper.h"
 #include "RomParameters.h"
+
+#include "miniaudio.c"
 
 #include <cstring>
 
@@ -34,6 +38,40 @@ static constexpr std::array<float, 31> SquareLUT = GenerateSquareTable();
 // Triangle, Noise, and DMC DAC Output Table
 static constexpr std::array<float, 203> TNDLUT =  GenerateTND();
 
+void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+    // In playback mode copy data to pOutput. In capture mode read data from pInput. In full-duplex mode, both
+    // pOutput and pInput will be valid and you can move data from pInput into pOutput. Never process more than
+    // frameCount frames.
+    auto& Buffer = *reinterpret_cast<CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*2>*>(pDevice->pUserData);
+
+    while(frameCount > 0)
+    {
+        frameCount--;
+    }
+}
+
+APU::APU()
+{
+    ma_device_config config = ma_device_config_init(ma_device_type_playback);
+    config.playback.format   = ma_format_f32;   // Set to ma_format_unknown to use the device's native format.
+    config.playback.channels = 2;               // Set to 0 to use the device's native channel count.
+    config.sampleRate        = TARGET_SAMPLE_RATE;           // Set to 0 to use the device's native sample rate.
+    config.dataCallback      = data_callback;   // This function will be called when miniaudio needs more data.
+    config.pUserData         = &mAudioBuffer;   // Can be accessed from the device object (device.pUserData).
+
+    mAudioDevice = std::make_unique<ma_device>();
+    ma_result result = ma_device_init(NULL, &config, &*mAudioDevice);
+    if (result != MA_SUCCESS) {
+        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to initialize miniaudio device: {0}\n", static_cast<uint8_t>(result));
+    }
+}
+
+APU::~APU()
+{
+    ma_device_uninit(&*mAudioDevice);
+}
+
 void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
 {
     mRAM = MemoryMapper;
@@ -54,6 +92,9 @@ void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
         mFrameInterruptCycleCount = NTSC_FRAME_INTERRUPT_CYCLE_COUNT;
         mSequenceCycleInterval = NTSC_SEQUENCE_STEP_CYCLE_COUNT;
     }
+
+    mDownsampleRatio = CPU->GetClockFrequency() / TARGET_SAMPLE_RATE;
+    bStartedDevice = false;
 
     std::memset(&mRegisters, 0, sizeof(mRegisters));
 }
@@ -124,6 +165,13 @@ void APU::ExecuteSequencer()
             mRegisters.Status |= static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
             mRAM->WriteRegister(STATUS_ADDRESS, mRegisters.Status);
             mCPU->SetIRQ(true);
+        }
+
+        // Start audio device once we have one audio frame of data generated.
+        if (!bStartedDevice)
+        {
+            ma_device_start(&*mAudioDevice);
+            bStartedDevice = true;
         }
     }
 
