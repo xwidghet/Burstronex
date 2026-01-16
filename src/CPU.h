@@ -66,7 +66,7 @@ class CPU {
 
     int64_t mCycleCount = 0;
 
-    bool bIRQTriggered = false;
+    bool mbIRQTriggered = false;
 
     MemoryMapper* mMemoryMapper;
 
