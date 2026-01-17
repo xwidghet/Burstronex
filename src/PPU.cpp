@@ -183,5 +183,5 @@ void PPU::ClearWRegister()
 
 void PPU::ToggleWRegister()
 {
-	mRegisters.w = ~mRegisters.w;
+	mRegisters.w = !mRegisters.w;
 }

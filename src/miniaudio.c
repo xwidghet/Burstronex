@@ -8,3 +8,6 @@
 
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
+
+// #Windblows
+#undef ERROR

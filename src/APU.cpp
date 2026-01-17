@@ -72,7 +72,6 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
 APU::APU()
 {
-    mAudioContext = std::make_unique<ma_context>();
     mAudioDevice = std::make_unique<ma_device>();
 }
 
@@ -112,32 +111,6 @@ void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
 
 void APU::InitAudio()
 {
-    ma_context_config contextConfig = ma_context_config_init();
-    contextConfig.alsa = {true};
-
-    ma_backend backends[] = {
-        ma_backend_alsa,
-        ma_backend_pulseaudio,
-        ma_backend_wasapi,
-        ma_backend_dsound
-    };
-
-    if (ma_context_init(backends, 3, NULL, &*mAudioContext) != MA_SUCCESS) {
-        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to initialize miniaudio context\n");
-    }
-
-    ma_device_info* pPlaybackInfos;
-    ma_uint32 playbackCount;
-    ma_device_info* pCaptureInfos;
-    ma_uint32 captureCount;
-    if (ma_context_get_devices(&*mAudioContext, &pPlaybackInfos, &playbackCount, &pCaptureInfos, &captureCount) != MA_SUCCESS) {
-        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to get miniaudio devices\n");
-    }
-
-    for (ma_uint32 iDevice = 0; iDevice < playbackCount; iDevice += 1) {
-        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "{0} - {1}\n", iDevice, pPlaybackInfos[iDevice].name);
-    }
-
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
 
     // Make miniaudio do the legwork of converting the APU's 1.79M sample rate to 48khz.
@@ -160,7 +133,7 @@ void APU::InitAudio()
 
     mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Config {0}\n", config.periodSizeInFrames);
 
-    ma_result result = ma_device_init(&*mAudioContext, &config, &*mAudioDevice);
+    ma_result result = ma_device_init(NULL, &config, &*mAudioDevice);
     if (result != MA_SUCCESS) {
         mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to initialize miniaudio device: {0}\n", static_cast<uint8_t>(result));
     }
