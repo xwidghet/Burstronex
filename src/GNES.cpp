@@ -1,5 +1,6 @@
 #include "GNES.h"
 
+#include "APU.h"
 #include "Logger.h"
 #include "RomLoader.h"
 #include "RomParameters.h"
@@ -29,6 +30,8 @@ void GNES::Run(const std::string& RomPath)
     Timer ClockTimer;
 
     Timer EmulatorSpeedTimer;
+    mEmulatorSpeed = 1.f;
+
     int64_t LastCPUCycles = mCPU->GetCycleCount();
     uint8_t WaitCycles = 0;
 
@@ -40,10 +43,14 @@ void GNES::Run(const std::string& RomPath)
         mPPU->Execute(CyclesUsed);
         mAPU->Execute(CyclesUsed);
 
-        if (WaitCycles > 50)
+        if (WaitCycles >= 50)
         {
             auto ExecutionTime = mCPU->GetCycleTime() * WaitCycles;
             WaitCycles = 0;
+
+            // Dynamic Rate Control of Emulator Speed via Audio buffer.
+            float BufferFillSpeed = (0.5f - mAPU->GetBufferFillPercentage()) / 0.5f;
+            ExecutionTime -= ExecutionTime*BufferFillSpeed;
 
             ClockTimer.WaitUntil(ExecutionTime);
             ClockTimer.Reset();

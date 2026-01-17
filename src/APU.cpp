@@ -43,7 +43,7 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     // In playback mode copy data to pOutput. In capture mode read data from pInput. In full-duplex mode, both
     // pOutput and pInput will be valid and you can move data from pInput into pOutput. Never process more than
     // frameCount frames.
-    auto& Buffer = *reinterpret_cast<CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*16>*>(pDevice->pUserData);
+    auto& Buffer = *reinterpret_cast<CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*3>*>(pDevice->pUserData);
     size_t ReadIndex = 0;
     size_t EndIndex = 0;
 
@@ -103,7 +103,7 @@ void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
     }
 
     mDownsampleRatio = CPU->GetClockFrequency() / TARGET_SAMPLE_RATE;
-    bStartedDevice = false;
+    mbStartedDevice = false;
 
     std::memset(&mRegisters, 0, sizeof(mRegisters));
 
@@ -253,11 +253,11 @@ void APU::ExecuteSequencer()
         }
 
         // Start audio device once we have one audio frame of data generated.
-        if (!bStartedDevice)
+        if (!mbStartedDevice)
         {
             mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Started Audio Device\n");
             ma_device_start(&*mAudioDevice);
-            bStartedDevice = true;
+            mbStartedDevice = true;
         }
 
         mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "APU Buffer: {0}%\n", mAudioBuffer.GetPercentageFilled());
@@ -309,4 +309,12 @@ float APU::DACOutput(uint8_t Pulse1, uint8_t Pulse2, uint8_t Triangle, uint8_t N
     float TNDOut = TNDLUT[3*Triangle + 2*Noise + DMC];
 
     return PulseOut + TNDOut;
+}
+
+float APU::GetBufferFillPercentage() const
+{
+    if (mbStartedDevice)
+        return mAudioBuffer.GetPercentageFilled();
+    else
+        return 1.f;
 }

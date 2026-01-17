@@ -46,7 +46,7 @@ public:
 
     // Returns the distance between Head and Tail as a percentage
     // Values approaching 0 signal underrunning, while values approaching 1 signal overrunning.
-    float GetPercentageFilled()
+    float GetPercentageFilled() const
     {
         if (Head < Tail)
         {
