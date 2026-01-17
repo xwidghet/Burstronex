@@ -43,4 +43,18 @@ public:
 
         Tail = (End + 1) % N;
     }
+
+    // Returns the distance between Head and Tail as a percentage
+    // Values approaching 0 signal underrunning, while values approaching 1 signal overrunning.
+    float GetPercentageFilled()
+    {
+        if (Head < Tail)
+        {
+            return float(Head + (N - Tail)) / N;
+        }
+        else
+        {
+            return float(Head - Tail) / N;
+        }
+    }
 };

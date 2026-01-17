@@ -140,14 +140,23 @@ void APU::InitAudio()
 
     ma_device_config config = ma_device_config_init(ma_device_type_playback);
 
-    // Hardcoded my device since ALSA refuses to use the correct device.
-    config.playback.pDeviceID = &pPlaybackInfos[17].id;
+    // Make miniaudio do the legwork of converting the APU's 1.79M sample rate to 48khz.
     config.playback.format   = ma_format_f32;   // Set to ma_format_unknown to use the device's native format.
     config.playback.channels = 1;               // Set to 0 to use the device's native channel count.
     config.sampleRate        = std::ceil(mCPU->GetClockFrequency());           // Set to 0 to use the device's native sample rate.
     config.dataCallback      = data_callback;   // This function will be called when miniaudio needs more data.
     config.pUserData         = &mAudioBuffer;   // Can be accessed from the device object (device.pUserData).
 
+    // APU output should always be [0-1], converted to [-1,1], so disable clipping for performance improvement.
+    config.noClip = true;
+
+    // On Linux with Pipewire thorugh alsa backend, it seems shared mode only partially works:
+    // If GNES starts first: Behavior is of exclusive mode, other applications can't play audio.
+    // If GNES starts second: Other applications behave normally, but GNES only outputs corrupted audio with cuts.
+    config.playback.shareMode = ma_share_mode_shared;
+    config.resampling.sampleRateIn = config.sampleRate;
+    config.resampling.sampleRateOut = TARGET_SAMPLE_RATE;
+    config.resampling.channels = 2;
 
     mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Config {0}\n", config.periodSizeInFrames);
 
@@ -250,6 +259,8 @@ void APU::ExecuteSequencer()
             ma_device_start(&*mAudioDevice);
             bStartedDevice = true;
         }
+
+        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "APU Buffer: {0}%\n", mAudioBuffer.GetPercentageFilled());
     }
 
     if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)
