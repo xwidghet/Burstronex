@@ -33,15 +33,15 @@ void MemoryMapper::Init(CPU* CPU, PPU* PPU)
 
 uint32_t MemoryMapper::MapAddress(uint32_t Address)
 {
-    // Prg ROM Area, with iNES 2.0 ROMS it could be as small as 8KB X 4 Mirrors, but generally 16KB X 2 Mirrors or 32KB No Mirrors
-    if (Address >= 0x8000)
-        Address = 0x8000 + (Address - 0x8000) % (mPrgRomMemory.size());
     // Internal RAM, 0x0000 - 0x07FF, Mirrored up to 0x1FFF
-    else if (Address <= 0x1FFF)
+    if (Address <= 0x1FFF)
         Address = 0x0000 + (Address - 0x0000) % (0x07FF + 1);
     // NES PPU Registers, 0x2000 - 0x2007, Mirrored up to 0x3FFF
     else if (Address <= 0x3FFF)
         Address = 0x2000 + (Address - 0x2000) % ((0x2007 - 0x2000) + 1);
+    // Prg ROM Area, with iNES 2.0 ROMS it could be as small as 8KB X 4 Mirrors, but generally 16KB X 2 Mirrors or 32KB No Mirrors
+    else if (Address >= 0x8000)
+        Address = 0x8000 + (Address - 0x8000) % (mPrgRomMemory.size());
 
     return Address;
 }
@@ -76,7 +76,8 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
         mPPU->ToggleWRegister();
     }
 
-    mMemory[MapAddress(Address)] = Value;
+    uint32_t TargetAddress = MapAddress(Address);
+    mMemory[TargetAddress] = Value;
 }
 
 uint16_t MemoryMapper::Read16Bit(const uint32_t Address)
