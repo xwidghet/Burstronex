@@ -83,11 +83,6 @@ void PPU::Execute(const uint8_t CPUCycles)
 
 void PPU::ExecuteCycle()
 {
-	// ??
-	// If I don't do this, the CPU never sets VBlank.
-	if (mClockCount == REGISTER_IGNORE_CYCLES + 1)
-		mbNMIOutputFlag = true;
-
 	// Wasteful to do all these reads, but I feel like it will make it nicer to program
 	if (mClockCount > REGISTER_IGNORE_CYCLES)
 	{
