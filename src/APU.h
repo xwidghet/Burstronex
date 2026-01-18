@@ -304,7 +304,7 @@ class APU {
         uint8_t mDivider = 0;
         uint8_t mDecayLevelCounter = 0;
 
-        uint8_t Value = 15;
+        uint8_t mValue = 15;
     };
 
     struct SweepUnit {
@@ -313,6 +313,8 @@ class APU {
 
         uint8_t mDivider = 0;
         bool mbReloadFlag = false;
+
+        uint8_t mLastSweepRegister = 0;
     };
 
     struct PulseUnit {
@@ -323,10 +325,6 @@ class APU {
 
         uint8_t mLengthCounter = 0;
 
-        uint16_t mCurrentPeriod = 0;
-        uint16_t mTargetPeriod = 0;
-        uint8_t mValue = 0;
-
         bool mbIsPulse2 = false;
 
         // Tracking changes in register which chages mCurrentPeriod
@@ -334,7 +332,7 @@ class APU {
         bool mbLastSweepEnabled = false;
 
         void ClockEnvelope(uint8_t& TimerRegister);
-        void ClockSweep(uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
+        void ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
         void ClockLengthCounter(bool bInfinite);
         uint8_t Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
     };

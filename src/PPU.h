@@ -359,7 +359,6 @@ class PPU {
 	// Toggled every frame regardless of if rendering is enabled.
 	bool mbIsEvenFrame = true;
 
-	bool mbVBlankFlag = false;
 	bool mbNMIOutputFlag = false;
 
 	bool mbOldNMIRequestFlag = false;

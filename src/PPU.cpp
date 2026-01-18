@@ -57,7 +57,6 @@ void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 	mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
 	mCurrentDot = 0;
 
-	mbVBlankFlag = false;
 	mbOldNMIRequestFlag = false;
 
 	mbPostFirstPreRenderScanline = false;
@@ -84,28 +83,20 @@ void PPU::Execute(const uint8_t CPUCycles)
 void PPU::ExecuteCycle()
 {
 	// Wasteful to do all these reads, but I feel like it will make it nicer to program
-	mPPUCTRL = mRAM->ReadRegister(PPUCTRL_ADDRESS);
-	mPPUMASK = mRAM->ReadRegister(PPUMASK_ADDRESS);
-	mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
-	mOAMADDR = mRAM->ReadRegister(OAMADDR_ADDRESS);
-	mPPU_SCROLL_ADDR_LATCH = mRAM->ReadRegister(PPU_SCROLL_ADDR_LATCH_ADDRESS);
-	mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
-	mPPUADDR = mRAM->ReadRegister(PPUADDR_ADDRESS);
-
-	if (mbPostFirstPreRenderScanline == false)
+	if (mbPostFirstPreRenderScanline)
 	{
-		if (mCurrentScanline == 0)
-		{
-			mbPostFirstPreRenderScanline = true;
-		}
-		else
-		{
-			mPPUCTRL = 0;
-		}
+		mPPUCTRL = mRAM->ReadRegister(PPUCTRL_ADDRESS);
+		mPPUMASK = mRAM->ReadRegister(PPUMASK_ADDRESS);
+		mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
+		mOAMADDR = mRAM->ReadRegister(OAMADDR_ADDRESS);
+		mPPU_SCROLL_ADDR_LATCH = mRAM->ReadRegister(PPU_SCROLL_ADDR_LATCH_ADDRESS);
+		mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
+		mPPUADDR = mRAM->ReadRegister(PPUADDR_ADDRESS);
 	}
 
 	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
-	if (mbVBlankFlag && bShouldTriggerNMI && mbOldNMIRequestFlag == false)
+	bool bBlankFlag = (mPPUSTATUS & static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG)) != 0;
+	if (bBlankFlag && bShouldTriggerNMI && mbOldNMIRequestFlag == false)
 	{
 		// When does this go false?
 		mbNMIOutputFlag = true;
@@ -119,15 +110,11 @@ void PPU::ExecuteCycle()
 
 	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
 	{
-		mbVBlankFlag = true;
-
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
 	}
 	if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
 	{
-		mbVBlankFlag = false;
-
 		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
 	}
@@ -157,6 +144,11 @@ void PPU::ExecuteCycle()
 			mCurrentScanline = 0;
 			mbIsEvenFrame = !mbIsEvenFrame;
 		}
+
+		if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE)
+		{
+			mbPostFirstPreRenderScanline = true;
+		}
 	}
 }
 
@@ -168,7 +160,7 @@ void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 bool PPU::ReadNMIOutput()
 {
 	bool bIsNMIEnabled = mbNMIOutputFlag;
-	if (mbNMIOutputFlag && mbVBlankFlag)
+	if (mbNMIOutputFlag)
 	{
 		mbNMIOutputFlag = false;
 	}

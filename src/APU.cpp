@@ -154,14 +154,16 @@ void APU::UpdateRegisters()
         uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
         mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 
+        mPulse1.mSequencerIndex = 0;
+
         bool bConstantVolume = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
         if (bConstantVolume)
         {
-            mPulse1.mEnvelope.Value = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+            mPulse1.mEnvelope.mValue = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
         }
         else
         {
-            mPulse1.mEnvelope.Value = 15;
+            mPulse1.mEnvelope.mValue = 15;
         }
     }
     
@@ -177,14 +179,16 @@ void APU::UpdateRegisters()
         uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
         mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 
+        mPulse2.mSequencerIndex = 0;
+
         bool bConstantVolume = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
         if (bConstantVolume)
         {
-            mPulse1.mEnvelope.Value = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+            mPulse2.mEnvelope.mValue = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
         }
         else
         {
-            mPulse1.mEnvelope.Value = 15;
+            mPulse2.mEnvelope.mValue = 15;
         }
     }
 
@@ -341,8 +345,8 @@ void APU::HalfFrame()
     mPulse1.ClockLengthCounter(bPulse1Infinite);
     mPulse2.ClockLengthCounter(bPulse2Infinite);
 
-    mPulse1.ClockSweep(mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
-    mPulse2.ClockSweep(mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
+    mPulse1.ClockSweep(mRAM, mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
+    mPulse2.ClockSweep(mRAM, mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
 
     // Clock Length Counters
 }
@@ -362,16 +366,6 @@ float APU::DACOutput()
 
     uint8_t Pulse1 = mPulse1.Execute(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
     uint8_t Pulse2 = mPulse2.Execute(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
-
-    mRAM->WriteRegister(PULSE1_TIMER_ADDRESS, mRegisters.Pulse1_Timer);
-    mRAM->WriteRegister(PULSE1_LENGTHCOUNTER_ADDRESS, mRegisters.Pulse1_LengthCounter);
-    mRAM->WriteRegister(PULSE1_ENVELOPE_ADDRESS, mRegisters.Pulse1_Envelope);
-    mRAM->WriteRegister(PULSE1_SWEEP_ADDRESS, mRegisters.Pulse1_Sweep);
-
-    mRAM->WriteRegister(PULSE2_TIMER_ADDRESS, mRegisters.Pulse2_Timer);
-    mRAM->WriteRegister(PULSE2_LENGTHCOUNTER_ADDRESS, mRegisters.Pulse2_LengthCounter);
-    mRAM->WriteRegister(PULSE2_ENVELOPE_ADDRESS, mRegisters.Pulse2_Envelope);
-    mRAM->WriteRegister(PULSE2_SWEEP_ADDRESS, mRegisters.Pulse2_Sweep);
 
     // Pulse, Triangle, and Noise should be 0-15
     // DMC should be 0-127
@@ -408,7 +402,7 @@ float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
 
 uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
 {
-    uint8_t Value = mEnvelope.Value;
+    uint8_t Value = mEnvelope.mValue;
     Value *= !mSweep.mbIsMutingChannel;
     Value *= mLengthCounter > 0;
 
@@ -416,17 +410,11 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     Timer |= (LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
 
     // Sequencer Begin
-    Timer -= 1;
+    mSequencerIndex += (Timer / 2) > 0;
 
     uint8_t Duty = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::DUTY)) >> 6;
-    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (Timer % 8))) != 0;
+    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (mSequencerIndex % 8))) != 0;
     Value *= SequencerOutput;
-
-    EnvelopeRegister &= ~static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::TIMER_LOW);
-    EnvelopeRegister |= Timer & 0xFF;
-
-    LengthCounterRegister &= ~static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH);
-    LengthCounterRegister |= (Timer >> 8);
 
     Value *= Timer < 8 ? 0 : 1;
     // Sequencer End
@@ -439,56 +427,67 @@ void APU::PulseUnit::ClockEnvelope(uint8_t& TimerRegister)
     bool bConstantVolume = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
     if (!bConstantVolume)
     {
-        if (mEnvelope.Value == 0)
+        if (mEnvelope.mValue == 0)
         {
             bool bLoop = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::ENVELOPE_LOOP)) != 0;
-            mEnvelope.Value = bLoop ? 15 : 0;
+            mEnvelope.mValue = bLoop ? 15 : 0;
         }
         else
         {
             uint8_t Rate = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
-            mEnvelope.Value = mEnvelope.Value >= Rate ? mEnvelope.Value - Rate : 0;
+            mEnvelope.mValue = mEnvelope.mValue >= Rate ? mEnvelope.mValue - Rate : 0;
         }
     }
 }
 
-void APU::PulseUnit::ClockSweep(uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
+void APU::PulseUnit::ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
 {
-    uint16_t Timer = EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::TIMER_LOW);
-    Timer |= (LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    uint16_t Period = EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::TIMER_LOW);
+    Period |= (LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
 
     mSweep.mbIsEnabled = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED);
     uint8_t ShiftCount = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
 
-    // Pulse Square Wave Period ??
-    int32_t Period = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
-
-    if (mLastPeriod != Period || mbLastSweepEnabled != mSweep.mbIsEnabled)
+    int32_t Change = ShiftCount == 0 ? Period : 0;
+    for (int i = 0; i < ShiftCount; i++)
     {
-        mTargetPeriod = mCurrentPeriod;
+        Change |= Period & (1 << i);
+    }
+    Period = Period >> ShiftCount;
+
+    bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
+
+    // Pulse1 uses ones compliment
+    Change = bNegateFlag ? (~Change + mbIsPulse2) : Change;
+    Period = std::max(Period + Change, 0);
+
+    mSweep.mDivider -= 1;
+
+    if (mSweep.mLastSweepRegister != SweepRegister)
+    {
+        mSweep.mLastSweepRegister = SweepRegister;
+
+        mSweep.mDivider = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
+        mSweep.mDivider += 1;
     }
 
-    if (mSweep.mbIsEnabled && (ShiftCount > 0))
-    {
-        int32_t Change = ShiftCount == 0 ? mCurrentPeriod : 0;
-        for (int i = 0; i < ShiftCount; i++)
-        {
-            Change |= Timer & (1 << i);
-        }
-        Timer = Timer >> ShiftCount;
-
-        bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
-
-        // Pulse1 uses ones compliment
-        Change = bNegateFlag ? (-Change + !mbIsPulse2) : Change;
-
-        mTargetPeriod = Period + std::max(Period + Change, 0);
-
-        mSweep.mDivider -= 1;
-    }
-
-    mSweep.mbIsMutingChannel = mTargetPeriod > 0x7FF ? 0 : 1;
+    mSweep.mbIsMutingChannel = Change > 0x7FF ? 0 : 1;
     mSweep.mbIsMutingChannel |= Period < 8 ? 0 : 1;
+
+    if (!mSweep.mbIsMutingChannel)
+    {
+        if (mSweep.mbIsEnabled && (ShiftCount > 0))
+        {
+            EnvelopeRegister &= ~static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::TIMER_LOW);
+            EnvelopeRegister |= Period & 0xFF;
+
+            LengthCounterRegister &= ~static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH);
+            LengthCounterRegister |= (Period >> 8);
+
+            RAM->WriteRegister(PULSE1_LENGTHCOUNTER_ADDRESS, LengthCounterRegister);
+            RAM->WriteRegister(PULSE1_ENVELOPE_ADDRESS, EnvelopeRegister);
+        }
+    }
 }
 
 void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
