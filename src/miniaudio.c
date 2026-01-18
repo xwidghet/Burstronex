@@ -6,6 +6,9 @@
 #define MA_NO_NODE_GRAPH
 #define MA_NO_GENERATION
 
+// WINDBLOWS STRIKES AGAIN!
+#define NOMINMAX
+
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
 

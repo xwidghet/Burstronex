@@ -64,14 +64,10 @@ enum class EPULSE_TIMER_MASKS : uint8_t {
 
 // PULSE_LENGTHCOUNTER_ADDRESS
 enum class EPULSE_LENGTH_COUNTER_MASKS : uint8_t {
-    // E
-    SWEEP_UNIT_ENABLED = 0b10000000,
-    // P
-    SWEEP_UNIT_PERIOD = 0b01110000,
-    // N
-    SWEEP_UNIT_NEGATE = 0b00001000,
-    // S
-    SWEEP_UNIT_SHIFT= 0b00000111
+    // L
+    LENGTH_COUNTER_LOAD = 0b11111000,
+    // T
+    TIMER_HIGH = 0b00000111
 };
 
 // PULSE_ENVELOPE_ADDRESS
@@ -83,10 +79,14 @@ enum class EPULSE_ENVELOPE_MASKS : uint8_t {
 // PULSE_SWEEP_ADDRESS
 // When written, reloads length counter, restarts envelope, resets phase of pulse generator.
 enum class EPULSE_SWEEP_MASKS : uint8_t {
-    // L
-    LENGTH_COUNTER_LOAD = 0b11111000,
-    // T
-    TIMER_HIGH = 0b00000111
+    // E
+    SWEEP_UNIT_ENABLED = 0b10000000,
+    // P
+    SWEEP_UNIT_PERIOD = 0b01110000,
+    // N
+    SWEEP_UNIT_NEGATE = 0b00001000,
+    // S
+    SWEEP_UNIT_SHIFT = 0b00000111
 };
 
 // TRIANGLE_TIMER_ADDRESS
@@ -232,6 +232,18 @@ enum class EFRAME_COUNTER_MASKS : uint8_t {
     IRQ_INHIBIT = 0b01000000
 };
 
+static const std::array<uint8_t, 4> DUTY_CYCLE_SEQUENCES{
+    0b01000000,
+    0b01100000,
+    0b01111000,
+    0b10011111
+};
+
+static const std::array<uint8_t, 32> LENGTH_COUNTER_TABLE{
+    10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14,
+    12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
+};
+
 class APU {
     MemoryMapper* mRAM;
     CPU* mCPU;
@@ -287,8 +299,48 @@ class APU {
     // Circular buffer of two audio frames. Ideally it stays roughly 1 frame full.
     CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*3> mAudioBuffer;
 
-    // Source Rate (CPU Frequency) / Target Sample Rate (48000)
-    float mDownsampleRatio = 0.f;
+    struct EnvelopeUnit {
+        bool mbStartFlag = false;
+        uint8_t mDivider = 0;
+        uint8_t mDecayLevelCounter = 0;
+
+        uint8_t Value = 15;
+    };
+
+    struct SweepUnit {
+        bool mbIsEnabled = false;
+        bool mbIsMutingChannel = false;
+
+        uint8_t mDivider = 0;
+        bool mbReloadFlag = false;
+    };
+
+    struct PulseUnit {
+        EnvelopeUnit mEnvelope;
+        SweepUnit mSweep;
+        uint8_t mSequencer = 0;
+        uint8_t mSequencerIndex = 0;
+
+        uint8_t mLengthCounter = 0;
+
+        uint16_t mCurrentPeriod = 0;
+        uint16_t mTargetPeriod = 0;
+        uint8_t mValue = 0;
+
+        bool mbIsPulse2 = false;
+
+        // Tracking changes in register which chages mCurrentPeriod
+        uint8_t mLastPeriod = 0;
+        bool mbLastSweepEnabled = false;
+
+        void ClockEnvelope(uint8_t& TimerRegister);
+        void ClockSweep(uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
+        void ClockLengthCounter(bool bInfinite);
+        uint8_t Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
+    };
+
+    PulseUnit mPulse1;
+    PulseUnit mPulse2;
 
 public:
     APU();
@@ -313,8 +365,11 @@ private:
 
     void ExecuteMode1Sequencer();
 
-    // Pulse, Triangle, and Noise should be 0-15
-    // DMC should be 0-127
-    // DAC Output is a float in the range [0.0, 1.0]
-    float DACOutput(uint8_t Pulse1, uint8_t Pulse2, uint8_t Triangle, uint8_t Noise, uint8_t DMC);
+    void HalfFrame();
+
+    void QuarterFrame();
+
+    float DACOutput();
+
+    float TestOutput(uint8_t CPUCycles, uint8_t i);
 };
