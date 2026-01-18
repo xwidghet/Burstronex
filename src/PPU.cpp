@@ -1,5 +1,6 @@
 #include "PPU.h"
 
+#include "Logger.h"
 #include "MemoryMapper.h"
 
 #include <cassert>
@@ -50,7 +51,7 @@ void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 	mPPUMASK = 0;
 	mPPUSTATUS = 0;
 	mOAMADDR = 0;
-	mPPU_SCROLL_ADDR_LATCH = 0;
+	mOAMDATA = 0;
 	mPPUSCROLL = 0;
 	mPPUADDR = 0;
 
@@ -82,22 +83,30 @@ void PPU::Execute(const uint8_t CPUCycles)
 
 void PPU::ExecuteCycle()
 {
+	// ??
+	// If I don't do this, the CPU never sets VBlank.
+	if (mClockCount == REGISTER_IGNORE_CYCLES + 1)
+		mbNMIOutputFlag = true;
+
 	// Wasteful to do all these reads, but I feel like it will make it nicer to program
-	if (mbPostFirstPreRenderScanline)
+	if (mClockCount > REGISTER_IGNORE_CYCLES)
 	{
 		mPPUCTRL = mRAM->ReadRegister(PPUCTRL_ADDRESS);
 		mPPUMASK = mRAM->ReadRegister(PPUMASK_ADDRESS);
-		mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
-		mOAMADDR = mRAM->ReadRegister(OAMADDR_ADDRESS);
-		mPPU_SCROLL_ADDR_LATCH = mRAM->ReadRegister(PPU_SCROLL_ADDR_LATCH_ADDRESS);
 		mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
 		mPPUADDR = mRAM->ReadRegister(PPUADDR_ADDRESS);
 	}
 
+	mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
+	mOAMADDR = mRAM->ReadRegister(OAMADDR_ADDRESS);
+	mOAMDATA = mRAM->ReadRegister(OAMDATA_ADDRESS);
+
 	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
-	bool bBlankFlag = (mPPUSTATUS & static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG)) != 0;
-	if (bBlankFlag && bShouldTriggerNMI && mbOldNMIRequestFlag == false)
+
+	bool bVblankFlag = (mPPUSTATUS & static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG)) != 0;
+	if (bVblankFlag && bShouldTriggerNMI && mbOldNMIRequestFlag == false)
 	{
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
 		// When does this go false?
 		mbNMIOutputFlag = true;
 	}
@@ -110,10 +119,18 @@ void PPU::ExecuteCycle()
 
 	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
 	{
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
+
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
+
+		if (bShouldTriggerNMI)
+		{
+			mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
+			mbNMIOutputFlag = true;
+		}
 	}
-	if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
+	else if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
 	{
 		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
@@ -150,6 +167,8 @@ void PPU::ExecuteCycle()
 			mbPostFirstPreRenderScanline = true;
 		}
 	}
+
+	mClockCount++;
 }
 
 void PPU::ExecuteRendering(const bool bIsRenderingEnabled)

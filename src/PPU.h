@@ -10,7 +10,7 @@ static const uint16_t PPUCTRL_ADDRESS = 0x2000;
 static const uint16_t PPUMASK_ADDRESS = 0x2001;
 static const uint16_t PPUSTATUS_ADDRESS = 0x2002;
 static const uint16_t OAMADDR_ADDRESS = 0x2003;
-static const uint16_t PPU_SCROLL_ADDR_LATCH_ADDRESS = 0x2004;
+static const uint16_t OAMDATA_ADDRESS = 0x2004;
 static const uint16_t PPUSCROLL_ADDRESS = 0x2005;
 static const uint16_t PPUADDR_ADDRESS = 0x2006;
 
@@ -272,6 +272,9 @@ enum class EOAMDMA {
 	SPRITE_DMA = 0b11111111
 };
 
+// Times three to avoid needing to read CPU clock count.
+const uint32_t REGISTER_IGNORE_CYCLES = 29658 * 3;
+
 
 class PPU {
 	struct PPUREGISTERS {
@@ -300,7 +303,7 @@ class PPU {
 	uint8_t mPPUMASK;
 	uint8_t mPPUSTATUS;
 	uint8_t mOAMADDR;
-	uint8_t mPPU_SCROLL_ADDR_LATCH;
+	uint8_t mOAMDATA;
 	uint8_t mPPUSCROLL;
 	uint8_t mPPUADDR;
 
@@ -364,6 +367,8 @@ class PPU {
 	bool mbOldNMIRequestFlag = false;
 
 	bool mbPostFirstPreRenderScanline = false;
+
+	uint64_t mClockCount = 0;
 
 	// CPU Address space, the PPU's Registers exist in the memory range 0x2000 to 0x2007, mirrored up to 0x3FFF.
 	// 

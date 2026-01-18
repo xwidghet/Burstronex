@@ -33,7 +33,11 @@ void GNES::Run(const std::string& RomPath)
     mEmulatorSpeed = 1.f;
 
     int64_t LastCPUCycles = mCPU->GetCycleCount();
-    uint8_t WaitCycles = 0;
+    uint8_t WaitCycles = mCPU->GetCycleCount();
+
+    // Execute PPU and APU for boot cycle count
+    mPPU->Execute(mCPU->GetCycleCount());
+    mAPU->Execute(mCPU->GetCycleCount());
 
     while (true)
     {
