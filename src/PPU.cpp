@@ -67,6 +67,8 @@ void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	
+	// Loading CHR into the pattern table range (0x0000 - 0x1FFF)
+	// Will need to rework this when Bank Switching is implemented.
 	std::memcpy(mMemory.data(), mChrRomMemory->data(), mChrRomMemory->size());
 }
 
