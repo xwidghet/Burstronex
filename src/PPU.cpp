@@ -67,7 +67,7 @@ void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
 	
-	std::memcpy(mMemory.data(), mChrRomMemory->data(), 8192);
+	std::memcpy(mMemory.data(), mChrRomMemory->data(), mChrRomMemory->size());
 }
 
 void PPU::Execute(const uint8_t CPUCycles)
