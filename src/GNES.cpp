@@ -1,10 +1,11 @@
 #include "GNES.h"
 
-#include "APU.h"
 #include "Logger.h"
 #include "RomLoader.h"
 #include "RomParameters.h"
 #include "Timer.h"
+
+#include <thread>
 
 void GNES::Run(const std::string& RomPath)
 {
@@ -26,6 +27,9 @@ void GNES::Run(const std::string& RomPath)
     mPPU->Init(&*mRAM, &ROM.ChrRomMemory);
 
     mRAM->Init(&*mCPU, &*mPPU);
+
+    mRenderer = std::make_unique<Renderer>();
+    std::thread RenderThread(&Renderer::Tick, &*mRenderer);
 
     Timer ClockTimer;
 
@@ -78,9 +82,10 @@ void GNES::Run(const std::string& RomPath)
 
         // Debug Remove me later.
         //if (mCPU->GetCycleCount() > 26554)
-         //   break;
+          //  break;
     }
 
     // Headless test rom debug.
     //mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
+   // mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x6004), mRAM->Read8Bit(0x6005));
 }

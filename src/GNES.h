@@ -1,14 +1,14 @@
 #pragma once
 
-#include "APU.h"
-#include "CPU.h"
-#include "PPU.h"
-
 #include "MemoryMapper.h"
+
+#include "APU.h"
+#include "PPU.h"
+#include "CPU.h"
+#include "Renderer.h"
 
 #include <memory>
 #include <string>
-
 
 class GNES {
     std::unique_ptr<APU> mAPU = nullptr;
@@ -16,6 +16,8 @@ class GNES {
     std::unique_ptr<PPU> mPPU = nullptr;
 
     std::unique_ptr<MemoryMapper> mRAM = nullptr;
+
+    std::unique_ptr<Renderer> mRenderer = nullptr;
 
     float mEmulatorSpeed = 0.f;
 
