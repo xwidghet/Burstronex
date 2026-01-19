@@ -19,8 +19,11 @@ class GNES {
 
     std::unique_ptr<Renderer> mRenderer = nullptr;
 
+    bool mbIsRunning = true;
     float mEmulatorSpeed = 0.f;
 
 public:
     void Run(const std::string& RomPath);
+
+    void RequestShutdown();
 };

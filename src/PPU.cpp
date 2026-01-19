@@ -85,6 +85,11 @@ void PPU::Execute(const uint8_t CPUCycles)
 
 void PPU::ExecuteCycle()
 {
+	// ??
+	// If I don't do this, the CPU never sets VBlank.
+	if (mClockCount == REGISTER_IGNORE_CYCLES + 1)
+		mbNMIOutputFlag = true;
+
 	// Wasteful to do all these reads, but I feel like it will make it nicer to program
 	if (mClockCount > REGISTER_IGNORE_CYCLES)
 	{
@@ -116,7 +121,7 @@ void PPU::ExecuteCycle()
 
 	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
 	{
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
+		//mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
 
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);

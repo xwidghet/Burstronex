@@ -29,7 +29,9 @@ void GNES::Run(const std::string& RomPath)
     mRAM->Init(&*mCPU, &*mPPU);
 
     mRenderer = std::make_unique<Renderer>();
-    std::thread RenderThread(&Renderer::Tick, &*mRenderer);
+    mRenderer->Init(std::bind(&GNES::RequestShutdown, this));
+
+    std::jthread RenderThread(&Renderer::Tick, &*mRenderer);
 
     Timer ClockTimer;
 
@@ -43,7 +45,7 @@ void GNES::Run(const std::string& RomPath)
     mPPU->Execute(mCPU->GetCycleCount());
     mAPU->Execute(mCPU->GetCycleCount());
 
-    while (true)
+    while (mbIsRunning)
     {
         auto CyclesUsed = mCPU->ExecuteNextInstruction();
         WaitCycles += CyclesUsed;
@@ -88,4 +90,9 @@ void GNES::Run(const std::string& RomPath)
     // Headless test rom debug.
     //mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
    // mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x6004), mRAM->Read8Bit(0x6005));
+}
+
+void GNES::RequestShutdown()
+{
+    mbIsRunning = false;
 }
