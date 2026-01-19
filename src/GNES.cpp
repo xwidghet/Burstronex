@@ -21,16 +21,15 @@ void GNES::Run(const std::string& RomPath)
     mAPU = std::make_unique<APU>();
     mPPU = std::make_unique<PPU>();
     mCPU = std::make_unique<CPU>();
+    mRenderer = std::make_unique<Renderer>();
 
     mCPU->Init(ROM, &*mRAM, &*mPPU);
     mAPU->Init(&*mRAM, &*mCPU, ROM.CPUTimingMode);
     mPPU->Init(&*mRAM, &ROM.ChrRomMemory);
 
-    mRAM->Init(&*mCPU, &*mPPU);
+    mRAM->Init(&*mCPU, &*mPPU, &*mRenderer);
 
-    mRenderer = std::make_unique<Renderer>();
     mRenderer->Init(std::bind(&GNES::RequestShutdown, this));
-
     std::jthread RenderThread(&Renderer::Tick, &*mRenderer);
 
     Timer ClockTimer;

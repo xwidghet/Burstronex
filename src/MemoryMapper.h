@@ -7,6 +7,7 @@
 
 class CPU;
 class PPU;
+class Renderer;
 
 class MemoryMapper {
     std::vector<uint8_t> mMemory;
@@ -19,11 +20,17 @@ class MemoryMapper {
 
     CPU* mCPU;
     PPU* mPPU;
+    Renderer* mRenderer;
+
+    uint8_t mControllerReadMask = 1;
+
+    uint8_t mController1Shift = 0;
+    uint8_t mController2Shift = 0;
 
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
 
-    void Init(CPU* CPU, PPU* PPU);
+    void Init(CPU* CPU, PPU* PPU, Renderer* RendererPtr);
 
     uint32_t MapAddress(uint32_t Address);
 

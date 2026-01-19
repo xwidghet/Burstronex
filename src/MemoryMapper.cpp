@@ -3,7 +3,11 @@
 #include "APU.h"
 #include "CPU.h"
 #include "PPU.h"
+#include "Input.h"
+#include "Renderer.h"
 #include "OpCodeDecoder.h"
+
+#include "Logger.h"
 
 #include <cstring>
 
@@ -23,12 +27,17 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     // Chr Memory requires a mapper to dynamically load information into 0x0000 -> 0x1FFF range during rendering.
     // Since it's only used for rendering, I can skip it for now.
     mChrRomLocation = 0x0000;
+
+    mControllerReadMask = 1;
+    mController1Shift = 0;
+    mController2Shift = 0;
 }
 
-void MemoryMapper::Init(CPU* CPU, PPU* PPU)
+void MemoryMapper::Init(CPU* CPU, PPU* PPU, Renderer* RendererPtr)
 {
     mCPU = CPU;
     mPPU = PPU;
+    mRenderer = RendererPtr;
 }
 
 uint32_t MemoryMapper::MapAddress(uint32_t Address)
@@ -61,6 +70,27 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
         mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
         mPPU->ClearWRegister();
     }
+    else if (Address == CONTROLLER_1_READ_ADDRESS)
+    {
+        // Official controllers always return 1 once the inputs have been exhausted
+        if (mController1Shift > 7)
+        {
+            mController1Shift = 8;
+            return 1;
+        }
+        Value = (mRenderer->GetController1() | (1 << mController1Shift)) != 0;
+        mController1Shift++;
+    }
+    else if (Address == CONTROLLER_2_READ_ADDRESS)
+    {
+        if (mController2Shift > 7)
+        {
+            mController2Shift = 8;
+            return 1;
+        }
+        Value = (mRenderer->GetController2() | (1 << mController2Shift)) != 0;
+        mController2Shift++;
+    }
 
     return Value;
 }
@@ -71,12 +101,23 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
     if (Address >= mPrgRomLocation)
         return;
 
+    uint32_t TargetAddress = MapAddress(Address);
+
     if (Address == PPUADDR_ADDRESS || Address == PPUSCROLL_ADDRESS)
     {
         mPPU->ToggleWRegister();
     }
+    else if (Address == CONTROLLER_STROBE_ADDRESS)
+    {
+        // First input always gets returned while Strobe bit is enabled.
+        bool bStrobeHigh = (Value & static_cast<uint8_t>(EControllerReadMasks::PRIMARY_CONTROLLER_STATUS)) != 0;
+        if (bStrobeHigh)
+        {
+            mController1Shift = 0;
+            mController2Shift = 0;
+        }
+    }
 
-    uint32_t TargetAddress = MapAddress(Address);
     mMemory[TargetAddress] = Value;
 }
 
