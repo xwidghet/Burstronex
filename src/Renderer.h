@@ -15,6 +15,8 @@ class Renderer {
     std::atomic<uint8_t> mController2 = 0;
 
 public:
+    ~Renderer();
+
     // Not Thread Safe, should only be used prior to starting the thread.
     void Init(std::function<void()> ShutdownFunction);
 

@@ -12,6 +12,15 @@
 #include "../thirdparty/imgui/backends/imgui_impl_opengl3.h"
 #include <atomic>
 
+Renderer::~Renderer()
+{
+    // External force has shutdown the Emulator, cleanup GLFW to avoid leaving a stale window open.
+    if (!glfwWindowShouldClose(mWindow))
+    {
+        glfwTerminate();
+    }
+}
+
 void Renderer::Init(std::function<void()> ShutdownFunction)
 {
     mShutdownFunction = std::move(ShutdownFunction);
