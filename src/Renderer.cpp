@@ -86,7 +86,7 @@ void Renderer::Tick()
     mShutdownFunction();
 }
 
-void Renderer::UpdateInputs(bool bController2, EControllerButtonMasks Button, bool bPressed)
+void Renderer::UpdateInputs(const bool bController2, const EControllerButtonMasks Button, const uint8_t bPressed)
 {
     uint8_t ButtonMask = static_cast<uint8_t>(Button);
 

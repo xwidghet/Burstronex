@@ -29,10 +29,14 @@ target_compile_features(GNES PRIVATE cxx_std_20)
 if(NOT WIN32)
     find_package(Threads REQUIRED)
     target_link_libraries(GNES PRIVATE Threads::Threads m)
-endif()
 
 find_package(OpenGL REQUIRED)
 target_link_libraries(GNES PUBLIC OpenGL::OpenGL)
+endif()
+
+if(WIN32)
+	target_link_libraries(GNES PUBLIC OpenGL32.lib)
+endif()
 
 add_library(glad STATIC src/glad.c)
 target_include_directories(glad PUBLIC include)

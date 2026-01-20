@@ -3,7 +3,7 @@
 #include <atomic>
 #include <functional>
 
-class GLFWwindow;
+struct GLFWwindow;
 enum class EControllerButtonMasks;
 
 class Renderer {
@@ -30,7 +30,7 @@ public:
     uint8_t GetController2();
 
 private:
-    void UpdateInputs(bool bController2, EControllerButtonMasks Button, bool bPressed);
+    void UpdateInputs(const bool bController2, const EControllerButtonMasks Button, const uint8_t bPressed);
 
     static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
