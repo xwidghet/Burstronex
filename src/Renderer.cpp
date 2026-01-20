@@ -157,6 +157,10 @@ void Renderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose(RendererPtr->mWindow, true);
                 break;
+            case GLFW_KEY_F1:
+                if (bButtonState)
+                    RendererPtr->mbShowDebugWindow = !RendererPtr->mbShowDebugWindow;
+                break;
             case GLFW_KEY_LEFT:
                 RendererPtr->UpdateInputs(false, EControllerButtonMasks::LEFT, bButtonState);
                 break;
