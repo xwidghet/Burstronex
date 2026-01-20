@@ -71,6 +71,13 @@ void Renderer::Tick()
 
     InitDrawData();
 
+    // GLFW bug on Linux? Doesn't happen on windows
+#ifdef __linux__
+    float XScale, YScale;
+    glfwGetWindowContentScale(mWindow, &XScale, &YScale);
+    glViewport(0, 0, 1440*XScale, 1080*YScale);
+#endif
+
     while(!glfwWindowShouldClose(mWindow))
     {
         glfwPollEvents();
