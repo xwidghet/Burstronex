@@ -114,7 +114,16 @@ void Renderer::InitDrawData()
 
 void Renderer::CompileShaders()
 {
-    mQuadShader = std::make_unique<Shader>("../../shaders/Quad.vert", "../../shaders/Quad.frag");
+    // Windows compiles to build/builttype/binary.exe
+    // Linux compiles to build/binary.exe
+    //
+    // TODO: fix this at some point...
+    std::string ShaderFolderPath = "../shaders/";
+#ifdef _WIN64
+    ShaderFolderPath = "../../shaders/"
+#endif
+
+    mQuadShader = std::make_unique<Shader>(ShaderFolderPath + "Quad.vert", ShaderFolderPath + "Quad.frag");
 }
 
 void Renderer::UpdateInputs(const bool bController2, const EControllerButtonMasks Button, const uint8_t bPressed)
