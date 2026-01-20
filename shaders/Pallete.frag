@@ -14,7 +14,6 @@ void main()
 {
 	vec4 Color = vec4(0);
 
-	/* Currently copy of Pallete Shader, but this will be useful later
 	const int Stride = 16 * 16;
 
 	int PatternTableOffset = QuadCoordinate.x > 0.5 ? 4096 : 0;
@@ -49,7 +48,7 @@ void main()
 		Color = vec4(0, 0, 1, 1);
 	else if (TileData0 && TileData1)
 		Color = vec4(1, 1, 0, 1);
-	*/
 
-	FragColor = vec4(QuadCoordinate.x, QuadCoordinate.y, 1.0f, 1.0f);
+	//FragColor = vec4(QuadCoordinate.x, QuadCoordinate.y, 1.0f, 1.0f);
+	FragColor = Color;
 }

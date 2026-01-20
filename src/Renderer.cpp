@@ -12,6 +12,11 @@
 #include <atomic>
 #include <fstream>
 
+Renderer::Renderer()
+{
+
+}
+
 Renderer::~Renderer()
 {
     // External force has shutdown the Emulator, cleanup GLFW to avoid leaving a stale window open.
@@ -110,6 +115,7 @@ void Renderer::InitDrawData()
     glEnableVertexAttribArray(0);
 
     CompileShaders();
+    CreateDataBuffers();
 }
 
 void Renderer::CompileShaders()
@@ -124,6 +130,37 @@ void Renderer::CompileShaders()
 #endif
 
     mQuadShader = std::make_unique<Shader>(ShaderFolderPath + "Quad.vert", ShaderFolderPath + "Quad.frag");
+    mPalleteShader = std::make_unique<Shader>(ShaderFolderPath + "Pallete.vert", ShaderFolderPath + "Pallete.frag");
+}
+
+void Renderer::CreateDataBuffers()
+{
+    glGenBuffers(1, &mSharedPPUMemorySSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, mSharedPPUMemorySSBO);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, mSharedPPUMemory.Size, nullptr, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, mSharedPPUMemorySSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void Renderer::UpdateSharedPPUMemorySSBO()
+{
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, mSharedPPUMemorySSBO);
+
+    uint32_t Offset = 0;
+    uint32_t DataSize = 1 * sizeof(GLint);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, &mSharedPPUMemory.mPPUCTRL);
+    Offset += DataSize;
+
+    DataSize = 16384 * sizeof(GLint);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mPPUMemory.data());
+    Offset += DataSize;
+
+    DataSize = 32 * sizeof(GLint);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mPalleteMemory.data());
+    Offset += DataSize;
+
+    DataSize = 256 * sizeof(GLint);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mObjectAttributeMemory.data());
 }
 
 void Renderer::UpdateInputs(const bool bController2, const EControllerButtonMasks Button, const uint8_t bPressed)
@@ -197,12 +234,19 @@ void Renderer::RenderFrame()
 {
     mQuadShader->Use();
 
+    UpdateSharedPPUMemorySSBO();
+
     glBindVertexArray(mQuadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void Renderer::RenderDebug()
 {
+    if (mbShowPallete)
+    {
+        DrawPallete();
+    }
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -211,6 +255,12 @@ void Renderer::RenderDebug()
     {
         ImGui::Begin("Debug", &mbShowDebugWindow);
         ImGui::Text("Test Post Please Ignore");
+
+        if (ImGui::Button("Display Pallete"))
+        {
+            mbShowPallete = !mbShowPallete;
+        }
+
         ImGui::End();
     }
 
@@ -218,6 +268,14 @@ void Renderer::RenderDebug()
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void Renderer::DrawPallete()
+{
+    mPalleteShader->Use();
+
+    glBindVertexArray(mQuadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 uint8_t Renderer::GetController1()
@@ -228,4 +286,19 @@ uint8_t Renderer::GetController1()
 uint8_t Renderer::GetController2()
 {
     return mController1.load(std::memory_order_relaxed);
+}
+
+void Renderer::CopyPPUMemory(const uint8_t PPUCTRL, const std::array<uint8_t, 16384>& PPUMemory, const std::array<uint8_t, 32>& PalleteMemory, const std::array<uint8_t, 256>& ObjectAttributeMemory)
+{
+    std::lock_guard<std::mutex> lock(*mSharedPPUMemory.mMutex);
+
+    mSharedPPUMemory.mPPUCTRL = PPUCTRL;
+    std::copy(PPUMemory.begin(), PPUMemory.end(), mSharedPPUMemory.mPPUMemory.begin());
+    std::copy(PalleteMemory.begin(), PalleteMemory.end(), mSharedPPUMemory.mPalleteMemory.begin());
+    std::copy(ObjectAttributeMemory.begin(), ObjectAttributeMemory.end(), mSharedPPUMemory.mObjectAttributeMemory.begin());
+}
+
+Renderer::SharedPPUMemory::SharedPPUMemory()
+{
+    mMutex = std::make_unique<std::mutex>();
 }

@@ -2,19 +2,14 @@
 
 #include "Logger.h"
 #include "MemoryMapper.h"
+#include "Renderer.h"
 
 #include <cassert>
 #include <cstring>
 
 PPU::PPU()
 {
-	// 16KB address space, 0x0000 - 0x3FFF. Accesed by PPU or CPU via memory mapped registers 0x2006 and 0x2007.
-	// 0x0000 - 0x1FFF - CHR ROM / CHR RAM, often with bank switching.
-	// 0x2000 - 0x2FFF - mapped to NES VRAM, 2 nametables with cartrige controlled mirroring. Can be remaped to ROM or RAM for up to 4 nametables.
-	// 0x3000 - 0x3EFF - mirror of 0x2000 - 0x2FFF. PPU doesn't render from this address range.
-	// 0x3F00 - 0x3FFF - Not configurable, mapped to internal pallete control.
-	mMemory = std::vector<char>(16384);
-
+	mMemory = {};
 	mPalleteMemory = {};
 	mObjectAttributeMemory = {};
 
@@ -39,7 +34,7 @@ PPU::PPU()
 	mChrRomMemory = nullptr;
 }
 
-void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
+void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const std::vector<char>* ChrRomMemory)
 {
 	// What are the real initial values of these?
 	mRegisters.v = 0;
@@ -63,10 +58,11 @@ void PPU::Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory)
 	mbPostFirstPreRenderScanline = false;
 
 	mRAM = RAM;
+	mRenderer = RendererPtr;
 
 	mChrRomMemory = ChrRomMemory;
 	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
-	
+
 	// Loading CHR into the pattern table range (0x0000 - 0x1FFF)
 	// Will need to rework this when Bank Switching is implemented.
 	std::memcpy(mMemory.data(), mChrRomMemory->data(), mChrRomMemory->size());
@@ -131,6 +127,9 @@ void PPU::ExecuteCycle()
 			mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
 			mbNMIOutputFlag = true;
 		}
+
+		// Upload data to GPU for rendering
+		mRenderer->CopyPPUMemory(mPPUCTRL, mMemory, mPalleteMemory, mObjectAttributeMemory);
 	}
 	else if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
 	{

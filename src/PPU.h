@@ -5,6 +5,7 @@
 #include <vector>
 
 class MemoryMapper;
+class Renderer;
 
 static const uint16_t PPUCTRL_ADDRESS = 0x2000;
 static const uint16_t PPUMASK_ADDRESS = 0x2001;
@@ -311,13 +312,18 @@ class PPU {
 	// During rendering (pre-render lines and visibible lines 0-239), triggers both coarse X increment and Y increment (with wrapping).
 	static const uint16_t PPUDATA_ADDRESS = 0x2007;
 
-	std::vector<char> mMemory;
+	// 16KB address space, 0x0000 - 0x3FFF. Accesed by PPU or CPU via memory mapped registers 0x2006 and 0x2007.
+	// 0x0000 - 0x1FFF - CHR ROM / CHR RAM, often with bank switching.
+	// 0x2000 - 0x2FFF - mapped to NES VRAM, 2 nametables with cartrige controlled mirroring. Can be remaped to ROM or RAM for up to 4 nametables.
+	// 0x3000 - 0x3EFF - mirror of 0x2000 - 0x2FFF. PPU doesn't render from this address range.
+	// 0x3F00 - 0x3FFF - Not configurable, mapped to internal pallete control.
+	std::array<uint8_t, 16384> mMemory;
 
 	// 4 Palletes, first 16 are background tiles, while last 16 are sprites.
 	// Entry 0 of pallete 0 is the backdrop color.
 	// Entry 0 of each pallete is transparent, so color values of these is ignored.
 	// Backdrop color is displayed when both background and sprites at this pixel are transparent.
-	std::array<char, 32> mPalleteMemory;
+	std::array<uint8_t, 32> mPalleteMemory;
 
 	// Display list of 64 Sprites, with 4 bytes of information each.
 	// Uses Dynamic Memory which decays to 0 if PPU is not rendering.
@@ -351,7 +357,7 @@ class PPU {
 	//+ --------Flip sprite vertically
 	// 
 	// Byte 3 - X Pos (Left side of sprite). 0xF9 - 0xFF are beyond the right edge of the screen. Sprites further left then 0 are not visible.
-	std::array<char, 256> mObjectAttributeMemory;
+	std::array<uint8_t, 256> mObjectAttributeMemory;
 
 	// All 12 memory regions stored (Address Begin, size)
 	std::array<std::pair<uint16_t, uint16_t>, 13> mMemoryMap;
@@ -374,7 +380,9 @@ class PPU {
 	// 
 	// PPU ignores writes (always 00?) for registers 0x2000, 0x2001, 0x2005, and 0x2006) 
 	// until reaching the first pre-render scanline of next frame, aka ~29658 NTSC CPU or 33132 PAL CPU Cycles.
-	MemoryMapper* mRAM;
+	MemoryMapper* mRAM = nullptr;
+
+	Renderer* mRenderer = nullptr;
 
 	const std::vector<char>* mChrRomMemory;
 
@@ -385,7 +393,7 @@ class PPU {
 public:
 	PPU();
 
-	void Init(MemoryMapper* RAM, const std::vector<char>* ChrRomMemory);
+	void Init(MemoryMapper* RAM, Renderer* RendererPtr, const std::vector<char>* ChrRomMemory);
 
 	void Execute(const uint8_t CPUCycles);
 

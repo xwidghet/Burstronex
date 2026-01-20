@@ -25,7 +25,7 @@ void GNES::Run(const std::string& RomPath)
 
     mCPU->Init(ROM, &*mRAM, &*mPPU);
     mAPU->Init(&*mRAM, &*mCPU, ROM.CPUTimingMode);
-    mPPU->Init(&*mRAM, &ROM.ChrRomMemory);
+    mPPU->Init(&*mRAM, &*mRenderer, &ROM.ChrRomMemory);
 
     mRAM->Init(&*mCPU, &*mPPU, &*mRenderer);
 
