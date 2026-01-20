@@ -3,14 +3,14 @@
 #include "Input.h"
 #include "Logger.h"
 
-#include "../include/glad/glad.h"
-
 #include "../thirdparty/glfw/include/GLFW/glfw3.h"
 
 #include "../thirdparty/imgui/imgui.h"
 #include "../thirdparty/imgui/backends/imgui_impl_glfw.h"
 #include "../thirdparty/imgui/backends/imgui_impl_opengl3.h"
+
 #include <atomic>
+#include <fstream>
 
 Renderer::~Renderer()
 {
@@ -39,7 +39,7 @@ void Renderer::Tick()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    mWindow = glfwCreateWindow(1920, 1080, "GNES", NULL, NULL);
+    mWindow = glfwCreateWindow(1440, 1080, "GNES", NULL, NULL);
     if (mWindow == nullptr)
     {
         mLog->Log(ELOGGING_SOURCES::RENDERER, ELOGGING_MODE::ERROR, "Failed to create window\n");
@@ -64,6 +64,8 @@ void Renderer::Tick()
     ImGui_ImplGlfw_InitForOpenGL(mWindow, true);
     ImGui_ImplOpenGL3_Init();
 
+    InitDrawData();
+
     while(!glfwWindowShouldClose(mWindow))
     {
         glfwPollEvents();
@@ -84,6 +86,35 @@ void Renderer::Tick()
 
     // Notify GNES that we're done.
     mShutdownFunction();
+}
+
+void Renderer::InitDrawData()
+{
+    float QuadVertices[] = {
+        0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        1.0, 0.0, 0.0,
+        1.0, 0.0, 0.0,
+        1.0, 1.0, 0.0,
+        0.0, 1.0, 0.0
+    };
+
+    glGenBuffers(1, &mQuadVBO);
+    glGenVertexArrays(1, &mQuadVAO);
+
+    glBindVertexArray(mQuadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, mQuadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(QuadVertices), QuadVertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    CompileShaders();
+}
+
+void Renderer::CompileShaders()
+{
+    mQuadShader = std::make_unique<Shader>("../../shaders/Quad.vert", "../../shaders/Quad.frag");
 }
 
 void Renderer::UpdateInputs(const bool bController2, const EControllerButtonMasks Button, const uint8_t bPressed)
@@ -151,7 +182,10 @@ void Renderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action
 
 void Renderer::RenderFrame()
 {
+    mQuadShader->Use();
 
+    glBindVertexArray(mQuadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void Renderer::RenderDebug()

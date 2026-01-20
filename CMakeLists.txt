@@ -19,7 +19,8 @@ target_sources(GNES
         src/OpCodeDecoder.cpp
         src/RomLoader.cpp
         src/Timer.cpp
-        src/Renderer.cpp)
+        src/Renderer.cpp
+		src/Shader.cpp)
 
 target_include_directories(GNES PRIVATE include)
 target_include_directories(GNES PRIVATE thirdparty/imgui)
