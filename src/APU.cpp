@@ -78,7 +78,6 @@ APU::APU()
 
 APU::~APU()
 {
-    ma_device_uninit(&*mAudioDevice);
 }
 
 void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
