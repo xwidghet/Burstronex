@@ -226,7 +226,7 @@ void PPU::WriteData(const uint8_t Data)
 	bool bIncrementMode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
 
 	// 32 Down...Where?
-	uint16_t Offset = bIncrementMode ? 32 : 0;
+	uint16_t Offset = bIncrementMode ? 32 : 1;
 
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Data! {0}\n", Offset);
 
