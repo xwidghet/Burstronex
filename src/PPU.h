@@ -304,7 +304,6 @@ class PPU {
 	uint8_t mPPUMASK;
 	uint8_t mPPUSTATUS;
 	uint8_t mOAMADDR;
-	uint8_t mOAMDATA;
 	uint8_t mPPUSCROLL;
 	uint16_t mPPUADDR;
 
@@ -398,6 +397,12 @@ public:
 	void Execute(const uint8_t CPUCycles);
 
 	bool ReadNMIOutput();
+
+	uint8_t ReadOAMDATA();
+
+	void WriteOAMADDR(const uint8_t Data);
+
+	void WriteOAMDATA(const uint8_t Data);
 
 	void WritePPUADDR(const uint8_t Data);
 

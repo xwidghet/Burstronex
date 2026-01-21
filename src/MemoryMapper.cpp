@@ -60,17 +60,21 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
     uint32_t TargetAddress = MapAddress(Address);
     uint8_t Value = mMemory[TargetAddress];
 
-    if (Address == STATUS_ADDRESS)
+    if (TargetAddress == STATUS_ADDRESS)
     {
         mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT));
         mCPU->SetIRQ(false);
     }
-    else if (Address == PPUSTATUS_ADDRESS)
+    else if (TargetAddress == PPUSTATUS_ADDRESS)
     {
         mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
         mPPU->ClearWRegister();
     }
-    else if (Address == CONTROLLER_1_READ_ADDRESS)
+    else if (TargetAddress == OAMDATA_ADDRESS)
+    {
+        return mPPU->ReadOAMDATA();
+    }
+    else if (TargetAddress == CONTROLLER_1_READ_ADDRESS)
     {
         // Official controllers always return 1 once the inputs have been exhausted
         if (mController1Shift > 7)
@@ -81,7 +85,7 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
         Value = (mRenderer->GetController1() | (1 << mController1Shift)) != 0;
         mController1Shift++;
     }
-    else if (Address == CONTROLLER_2_READ_ADDRESS)
+    else if (TargetAddress == CONTROLLER_2_READ_ADDRESS)
     {
         if (mController2Shift > 7)
         {
@@ -103,21 +107,31 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
 
     uint32_t TargetAddress = MapAddress(Address);
 
-    if (Address == PPUADDR_ADDRESS)
+    if (TargetAddress == OAMADDR_ADDRESS)
+    {
+        mPPU->WriteOAMADDR(Value);
+        return;
+    }
+    else if (TargetAddress == OAMDATA_ADDRESS)
+    {
+        mPPU->WriteOAMDATA(Value);
+        return;
+    }
+    else if (TargetAddress == PPUADDR_ADDRESS)
     {
         mPPU->WritePPUADDR(Value);
         return;
     }
-    else if (Address == PPUDATA_ADDRESS)
+    else if (TargetAddress == PPUDATA_ADDRESS)
     {
         mPPU->WriteData(Value);
         return;
     }
-    else if (Address == PPUSCROLL_ADDRESS)
+    else if (TargetAddress == PPUSCROLL_ADDRESS)
     {
         mPPU->ToggleWRegister();
     }
-    else if (Address == CONTROLLER_STROBE_ADDRESS)
+    else if (TargetAddress == CONTROLLER_STROBE_ADDRESS)
     {
         // First input always gets returned while Strobe bit is enabled.
         bool bStrobeHigh = (Value & static_cast<uint8_t>(EControllerReadMasks::PRIMARY_CONTROLLER_STATUS)) != 0;

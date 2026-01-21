@@ -46,7 +46,6 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const std::vector<char>
 	mPPUMASK = 0;
 	mPPUSTATUS = 0;
 	mOAMADDR = 0;
-	mOAMDATA = 0;
 	mPPUSCROLL = 0;
 	mPPUADDR = 0;
 
@@ -95,8 +94,6 @@ void PPU::ExecuteCycle()
 	}
 
 	mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
-	mOAMADDR = mRAM->ReadRegister(OAMADDR_ADDRESS);
-	mOAMDATA = mRAM->ReadRegister(OAMDATA_ADDRESS);
 
 	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
 
@@ -185,6 +182,27 @@ bool PPU::ReadNMIOutput()
 	}
 
 	return bIsNMIEnabled;
+}
+
+uint8_t PPU::ReadOAMDATA()
+{
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU Read PPU OAM DATA! {0:X}, {1:X}\n", mPPUADDR, mObjectAttributeMemory[mOAMADDR]);
+	return mObjectAttributeMemory[mOAMADDR];
+}
+
+void PPU::WriteOAMADDR(const uint8_t Data)
+{
+	mOAMADDR = Data;
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU OAM ADDR! {0:X}\n", Data);
+}
+
+
+void PPU::WriteOAMDATA(const uint8_t Data)
+{
+	mObjectAttributeMemory[mOAMADDR] = Data;
+
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU OAM DATA! {0:X}, {1:X}\n", mPPUADDR, Data);
+	mOAMADDR++;
 }
 
 void PPU::WritePPUADDR(const uint8_t Data)
