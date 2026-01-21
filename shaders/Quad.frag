@@ -45,14 +45,7 @@ void main()
 	bool TileData1 = (Byte1 & (1 << PixelIndex)) != 0;
 
 	vec4 Color = vec4(0);
-	if (TileData0 && !TileData1)
-		Color = vec4(1, 0, 0, 1);
-	else if (!TileData0 && TileData1)
-		Color = vec4(0, 1, 0, 1);
-	else if (!TileData0 && !TileData1)
-		Color = vec4(0, 0, 1, 1);
-	else if (TileData0 && TileData1)
-		Color = vec4(1, 1, 0, 1);
+	Color.rgb = (((float(TileData0) * 1) + float(TileData1) * 2) / 3.0).xxx;
 
 	FragColor = Color;
 }
