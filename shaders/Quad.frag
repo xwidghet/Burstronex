@@ -28,11 +28,7 @@ void main()
 
 	const int CellData = mPPUMemory[NameTableAddress + NameCellX + NameCellY*32];
 
-	// 8x8 Character tiles filling 256x240 pixels
-	const int X = int(PatternCoordinates.x * 32.0);
-	const int Y = int((PatternCoordinates.y) * 30.0);
-
-	int TileCorner = BackgroundPatternTableAddress + CellData;
+	int TileCorner = BackgroundPatternTableAddress + CellData*16;
 
 	// Get Tile Top Left Corner
 	int XPixel = int(PatternCoordinates.x * 256.0) % 8;

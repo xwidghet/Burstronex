@@ -224,11 +224,15 @@ void PPU::WriteOAMDATA(const uint8_t Data)
 void PPU::WritePPUADDR(const uint8_t Data)
 {
 	// High first, low second
-	const uint8_t WriteData = mRegisters.w ?  Data : uint16_t(Data << 8);
-	const uint8_t ClearMask = 0xFFFF << (mRegisters.w ? 0 : 8);
-
-	mPPUADDR &= ~ClearMask;
-	mPPUADDR |= WriteData;
+	if (!mRegisters.w)
+	{
+		mNextPPUADDR = uint16_t(Data << 8);
+	}
+	else
+	{
+		mPPUADDR = (mNextPPUADDR | Data);
+		mRegisters.t = mPPUADDR;
+	}
 
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Address! {0:X}\n", mPPUADDR);
 

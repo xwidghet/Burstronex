@@ -1366,6 +1366,7 @@ void CPU::PHP()
 {
     auto CPUFlags = mRegisters.P;
     CPUFlags |= static_cast<uint8_t>((EStatusFlags::BFlag));
+    CPUFlags |= static_cast<uint8_t>(EStatusFlags::ONEFLAG);
 
     PushStack(CPUFlags);
 }

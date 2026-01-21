@@ -308,6 +308,8 @@ class PPU {
 	uint8_t mPPUSCROLL;
 	uint16_t mPPUADDR;
 
+	uint16_t mNextPPUADDR = 0;
+
 	uint8_t mPPUDataReadBuffer = 0;
 
 	// 16KB address space, 0x0000 - 0x3FFF. Accesed by PPU or CPU via memory mapped registers 0x2006 and 0x2007.
