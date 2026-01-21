@@ -20,7 +20,7 @@ void main()
 	int BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
 
 	// 0: 8x8, 1: 8x16
-	bool SpriteSizeMode = (mPPUCTRL & (1 << 6)) != 0;
+	bool SpriteSizeMode = (mPPUCTRL & (1 << 5)) != 0;
 
 	// 32x30 Grid, 1 byte per cell
 	const int NameCellX = int(PatternCoordinates.x * 32.0);
