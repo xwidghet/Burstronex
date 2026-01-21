@@ -52,8 +52,12 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataP
 
 	mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
 	mCurrentDot = 0;
+	mbIsEvenFrame = false;
+
+	mbIsVBlank = false;
 
 	mbOldNMIState = false;
+	mbNMIOutputFlag = false;
 
 	mbPostFirstPreRenderScanline = false;
 
@@ -81,34 +85,27 @@ void PPU::Execute(const uint8_t CPUCycles)
 
 void PPU::ExecuteCycle()
 {
-	// ??
-	// If I don't do this, the CPU never sets VBlank.
-	if (mClockCount == REGISTER_IGNORE_CYCLES + 1)
-		mbNMIOutputFlag = true;
-
 	// Wasteful to do all these reads, but I feel like it will make it nicer to program
 	if (mClockCount > REGISTER_IGNORE_CYCLES)
 	{
-		mPPUCTRL = mRAM->ReadRegister(PPUCTRL_ADDRESS);
 		mPPUMASK = mRAM->ReadRegister(PPUMASK_ADDRESS);
 		mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
-	}
-
-	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
-
-	mbOldNMIState = mbNMIState;
-	mbNMIState = mbIsVBlank && bShouldTriggerNMI;
-	if (mbNMIState && mbOldNMIState == false)
-	{
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
-		// When does this go false?
-		mbNMIOutputFlag = true;
 	}
 
 	// Should take effect 4 dots or more after write, otherwise a crash may occur.
 	bool bIsRenderingEnabled = (mPPUMASK & PPUMASK_RENDERING_MASK) != 0;
 
-	bool bIsVBLANK = mCurrentScanline >= VBLANK_SCANLINE_RANGE.first && mCurrentScanline < PPU_PRE_RENDER_SCANLINE;
+	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
+
+	/*
+	mbOldNMIState = mbNMIState;
+	mbNMIState = bShouldTriggerNMI;
+	if (mbNMIState && mbOldNMIState == false && mbIsVBlank)
+	{
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
+		// When does this go false?
+		mbNMIOutputFlag = true;
+	}*/
 
 	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
 	{
@@ -117,10 +114,7 @@ void PPU::ExecuteCycle()
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 
 		if (bShouldTriggerNMI)
-		{
-			mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
 			mbNMIOutputFlag = true;
-		}
 
 		// Upload data to GPU for rendering
 		mRenderer->CopyPPUMemory(mPPUCTRL, mMemory, mPalleteMemory, mObjectAttributeMemory);
@@ -183,15 +177,29 @@ bool PPU::ReadNMIOutput()
 	return bIsNMIEnabled;
 }
 
+void PPU::WritePPUCTRL(const uint8_t Data)
+{
+	bool bOldShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
+	bool bNewShouldTriggerNMI = (Data & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
+
+	if (bOldShouldTriggerNMI == false && bNewShouldTriggerNMI == true && mbIsVBlank)
+	{
+		mbNMIOutputFlag = true;
+	}
+
+	mPPUCTRL = Data;
+}
+
 uint8_t PPU::ReadPPUSTATUS()
 {
 	uint8_t Value = mPPUSTATUS;
 
 	// Hack while Sprite 0 hit is not implemented.
 	Value |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+	Value |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
 
-	if (Value != 0x40)
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "Status with VBlank! {0:X}\n", Value);
+	//if (Value != 0x40)
+	//	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "Status with VBlank! {0:X}\n", Value);
 
 	mPPUSTATUS &= (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
 	mbIsVBlank = false;
@@ -336,4 +344,9 @@ void PPU::ClearWRegister()
 void PPU::ToggleWRegister()
 {
 	mRegisters.w = !mRegisters.w;
+}
+
+uint64_t PPU::GetCycleCount() const
+{
+	return mClockCount;
 }

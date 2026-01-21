@@ -402,6 +402,8 @@ public:
 
 	bool ReadNMIOutput();
 
+	void WritePPUCTRL(const uint8_t Data);
+
 	uint8_t ReadPPUSTATUS();
 
 	uint8_t ReadOAMDATA();
@@ -419,4 +421,6 @@ public:
 	void ClearWRegister();
 
 	void ToggleWRegister();
+
+	uint64_t GetCycleCount() const;
 };

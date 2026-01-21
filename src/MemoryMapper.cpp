@@ -139,6 +139,11 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
         mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "REJECTED CPU WRITTING PPU STATUS!");
         return;
     }
+    else if (TargetAddress == PPUCTRL_ADDRESS)
+    {
+        mPPU->WritePPUCTRL(Value);
+        return;
+    }
     else if (TargetAddress == CONTROLLER_STROBE_ADDRESS)
     {
         // First input always gets returned while Strobe bit is enabled.

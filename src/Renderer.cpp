@@ -273,6 +273,12 @@ void Renderer::RenderDebug()
             mPalleteShader->Reload();
         }
 
+        if (ImGui::Button("Verbose Logging"))
+        {
+            mLog->SetLogMode(ELOGGING_MODE::VERBOSE);
+        }
+
+
         ImGui::End();
     }
 

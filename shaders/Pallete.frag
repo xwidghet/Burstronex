@@ -12,8 +12,6 @@ layout(std430, binding = 0) buffer PPUMemory
 
 void main()
 {
-	vec4 Color = vec4(0);
-
 	const int Stride = 16 * 16;
 
 	int PatternTableOffset = QuadCoordinate.x > 0.5 ? 4096 : 0;
@@ -40,14 +38,8 @@ void main()
 	bool TileData0 = (Byte0 & (1 << PixelIndex)) != 0;
 	bool TileData1 = (Byte1 & (1 << PixelIndex)) != 0;
 
-	if (TileData0 && !TileData1)
-		Color = vec4(1, 0, 0, 1);
-	else if (!TileData0 && TileData1)
-		Color = vec4(0, 1, 0, 1);
-	else if (!TileData0 && !TileData1)
-		Color = vec4(0, 0, 1, 1);
-	else if (TileData0 && TileData1)
-		Color = vec4(1, 1, 0, 1);
+	vec4 Color = vec4(0);
+	Color.rgb = (((float(TileData0) * 1) + float(TileData1) * 2) / 3.0).xxx;
 
 	//FragColor = vec4(QuadCoordinate.x, QuadCoordinate.y, 1.0f, 1.0f);
 	FragColor = Color;

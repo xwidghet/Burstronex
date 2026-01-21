@@ -39,6 +39,11 @@ public:
     }
 
     void SetLogSource(ELOGGING_SOURCES LogSource, bool bEnabled);
+
+    void SetLogMode(ELOGGING_MODE NewMode)
+    {
+        mLoggingMode = NewMode;
+    }
 };
 
 inline std::unique_ptr<Logger> mLog;
