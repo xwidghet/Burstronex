@@ -25,7 +25,7 @@ void GNES::Run(const std::string& RomPath)
 
     mCPU->Init(ROM, &*mRAM, &*mPPU);
     mAPU->Init(&*mRAM, &*mCPU, ROM.CPUTimingMode);
-    mPPU->Init(&*mRAM, &*mRenderer, &ROM.ChrRomMemory);
+    mPPU->Init(&*mRAM, &*mRenderer, &ROM);
 
     mRAM->Init(&*mCPU, &*mPPU, &*mRenderer);
 
@@ -50,7 +50,7 @@ void GNES::Run(const std::string& RomPath)
         WaitCycles += CyclesUsed;
 
         mPPU->Execute(CyclesUsed);
-        mAPU->Execute(CyclesUsed);
+        //mAPU->Execute(CyclesUsed);
 
         if (WaitCycles >= 50)
         {
@@ -59,7 +59,7 @@ void GNES::Run(const std::string& RomPath)
 
             // Dynamic Rate Control of Emulator Speed via Audio buffer.
             float BufferFillSpeed = (0.5f - mAPU->GetBufferFillPercentage()) / 0.5f;
-            ExecutionTime -= ExecutionTime*BufferFillSpeed;
+            //ExecutionTime -= ExecutionTime*BufferFillSpeed;
 
             ClockTimer.WaitUntil(ExecutionTime);
             ClockTimer.Reset();

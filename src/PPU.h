@@ -6,6 +6,7 @@
 
 class MemoryMapper;
 class Renderer;
+struct ROMData;
 
 static const uint16_t PPUCTRL_ADDRESS = 0x2000;
 static const uint16_t PPUMASK_ADDRESS = 0x2001;
@@ -198,7 +199,7 @@ const uint8_t OPEN_BUS_MASK = 0b00011111;
 
 // Ram Address 0x2002 (Read)
 // Reading this address also clears the PPU's w register.
-enum class EPPUSTATUS {
+enum class EPPUSTATUS : uint8_t {
 	OPEN_BUS_0 = 1 << 0,
 	OPEN_BUS_1 = 1 << 1,
 	OPEN_BUS_2 = 1 << 2,
@@ -307,9 +308,7 @@ class PPU {
 	uint8_t mPPUSCROLL;
 	uint16_t mPPUADDR;
 
-	// Writes to this address adds 1 or 32 to register v depending on VRAM incremement bit set in PPUCTRL_ADDRESS
-	// During rendering (pre-render lines and visibible lines 0-239), triggers both coarse X increment and Y increment (with wrapping).
-	static const uint16_t PPUDATA_ADDRESS = 0x2007;
+	uint8_t mPPUDataReadBuffer = 0;
 
 	// 16KB address space, 0x0000 - 0x3FFF. Accesed by PPU or CPU via memory mapped registers 0x2006 and 0x2007.
 	// 0x0000 - 0x1FFF - CHR ROM / CHR RAM, often with bank switching.
@@ -369,7 +368,10 @@ class PPU {
 
 	bool mbNMIOutputFlag = false;
 
-	bool mbOldNMIRequestFlag = false;
+	bool mbNMIState = false;
+	bool mbOldNMIState = false;
+
+	bool mbIsVBlank = false;
 
 	bool mbPostFirstPreRenderScanline = false;
 
@@ -381,9 +383,9 @@ class PPU {
 	// until reaching the first pre-render scanline of next frame, aka ~29658 NTSC CPU or 33132 PAL CPU Cycles.
 	MemoryMapper* mRAM = nullptr;
 
-	Renderer* mRenderer = nullptr;
+	const ROMData* mRomData;
 
-	const std::vector<char>* mChrRomMemory;
+	Renderer* mRenderer = nullptr;
 
 	void ExecuteCycle();
 
@@ -392,11 +394,13 @@ class PPU {
 public:
 	PPU();
 
-	void Init(MemoryMapper* RAM, Renderer* RendererPtr, const std::vector<char>* ChrRomMemory);
+	void Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataPtr);
 
 	void Execute(const uint8_t CPUCycles);
 
 	bool ReadNMIOutput();
+
+	uint8_t ReadPPUSTATUS();
 
 	uint8_t ReadOAMDATA();
 
@@ -406,7 +410,9 @@ public:
 
 	void WritePPUADDR(const uint8_t Data);
 
-	void WriteData(const uint8_t Data);
+	uint8_t ReadPPUData();
+
+	void WritePPUData(const uint8_t Data);
 
 	void ClearWRegister();
 

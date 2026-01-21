@@ -35,8 +35,8 @@ void main()
 	int TileCorner = BackgroundPatternTableAddress + CellData;
 
 	// Get Tile Top Left Corner
-	int XPixel = int(PatternCoordinates.x * 128.0) % 8;
-	int YPixel = int(PatternCoordinates.y * 128.0) % 8;
+	int XPixel = int(PatternCoordinates.x * 256.0) % 8;
+	int YPixel = int(PatternCoordinates.y * 256.0) % 8;
 
 	// Each Tile is 16 Bytes, where X coordinate is in the bits stored accross two bytes.
 	int Byte0 = mPPUMemory[TileCorner + YPixel];

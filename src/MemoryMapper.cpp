@@ -67,12 +67,15 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
     }
     else if (TargetAddress == PPUSTATUS_ADDRESS)
     {
-        mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
-        mPPU->ClearWRegister();
+        Value = mPPU->ReadPPUSTATUS();
+    }
+    else if (TargetAddress == PPUDATA_ADDRESS)
+    {
+        Value = mPPU->ReadPPUData();
     }
     else if (TargetAddress == OAMDATA_ADDRESS)
     {
-        return mPPU->ReadOAMDATA();
+        Value = mPPU->ReadOAMDATA();
     }
     else if (TargetAddress == CONTROLLER_1_READ_ADDRESS)
     {
@@ -124,12 +127,17 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
     }
     else if (TargetAddress == PPUDATA_ADDRESS)
     {
-        mPPU->WriteData(Value);
+        mPPU->WritePPUData(Value);
         return;
     }
     else if (TargetAddress == PPUSCROLL_ADDRESS)
     {
         mPPU->ToggleWRegister();
+    }
+    else if (TargetAddress == PPUSTATUS_ADDRESS)
+    {
+        mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "REJECTED CPU WRITTING PPU STATUS!");
+        return;
     }
     else if (TargetAddress == CONTROLLER_STROBE_ADDRESS)
     {

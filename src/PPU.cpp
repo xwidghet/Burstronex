@@ -3,6 +3,7 @@
 #include "Logger.h"
 #include "MemoryMapper.h"
 #include "Renderer.h"
+#include "RomParameters.h"
 
 #include <cassert>
 #include <cstring>
@@ -30,11 +31,9 @@ PPU::PPU()
 	}};
 
 	mRAM = nullptr;
-
-	mChrRomMemory = nullptr;
 }
 
-void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const std::vector<char>* ChrRomMemory)
+void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataPtr)
 {
 	// What are the real initial values of these?
 	mRegisters.v = 0;
@@ -49,22 +48,24 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const std::vector<char>
 	mPPUSCROLL = 0;
 	mPPUADDR = 0;
 
+	mPPUDataReadBuffer = 0;
+
 	mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
 	mCurrentDot = 0;
 
-	mbOldNMIRequestFlag = false;
+	mbOldNMIState = false;
 
 	mbPostFirstPreRenderScanline = false;
 
 	mRAM = RAM;
 	mRenderer = RendererPtr;
+	mRomData = RomDataPtr;
 
-	mChrRomMemory = ChrRomMemory;
-	assert(mChrRomMemory != nullptr && ChrRomMemory->size() <= 8192);
+	assert(RomDataPtr->ChrRomMemory.size() <= 8192);
 
 	// Loading CHR into the pattern table range (0x0000 - 0x1FFF)
 	// Will need to rework this when Bank Switching is implemented.
-	std::memcpy(mMemory.data(), mChrRomMemory->data(), mChrRomMemory->size());
+	std::memcpy(mMemory.data(), RomDataPtr->ChrRomMemory.data(), RomDataPtr->ChrRomMemory.size());
 }
 
 void PPU::Execute(const uint8_t CPUCycles)
@@ -93,18 +94,16 @@ void PPU::ExecuteCycle()
 		mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
 	}
 
-	mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
-
 	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
 
-	bool bVblankFlag = (mPPUSTATUS & static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG)) != 0;
-	if (bVblankFlag && bShouldTriggerNMI && mbOldNMIRequestFlag == false)
+	mbOldNMIState = mbNMIState;
+	mbNMIState = mbIsVBlank && bShouldTriggerNMI;
+	if (mbNMIState && mbOldNMIState == false)
 	{
 		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
 		// When does this go false?
 		mbNMIOutputFlag = true;
 	}
-	mbOldNMIRequestFlag = bShouldTriggerNMI;
 
 	// Should take effect 4 dots or more after write, otherwise a crash may occur.
 	bool bIsRenderingEnabled = (mPPUMASK & PPUMASK_RENDERING_MASK) != 0;
@@ -113,10 +112,9 @@ void PPU::ExecuteCycle()
 
 	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
 	{
-		//mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
-
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
+		mbIsVBlank = true;
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
 
 		if (bShouldTriggerNMI)
 		{
@@ -129,11 +127,12 @@ void PPU::ExecuteCycle()
 	}
 	else if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
 	{
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Exit VBlank phase!!\n");
+		mbIsVBlank = false;
 		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-		mRAM->WriteRegister(PPUSTATUS_ADDRESS, mPPUSTATUS);
 	}
 
-	if (bIsVBLANK == false)
+	if (mbIsVBlank == false)
 	{
 		ExecuteRendering(bIsRenderingEnabled);
 	}
@@ -184,6 +183,23 @@ bool PPU::ReadNMIOutput()
 	return bIsNMIEnabled;
 }
 
+uint8_t PPU::ReadPPUSTATUS()
+{
+	uint8_t Value = mPPUSTATUS;
+
+	// Hack while Sprite 0 hit is not implemented.
+	Value |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+
+	if (Value != 0x40)
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "Status with VBlank! {0:X}\n", Value);
+
+	mPPUSTATUS &= (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
+	mbIsVBlank = false;
+	ClearWRegister();
+
+	return Value;
+}
+
 uint8_t PPU::ReadOAMDATA()
 {
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU Read PPU OAM DATA! {0:X}, {1:X}\n", mPPUADDR, mObjectAttributeMemory[mOAMADDR]);
@@ -219,18 +235,93 @@ void PPU::WritePPUADDR(const uint8_t Data)
 	ToggleWRegister();
 }
 
-void PPU::WriteData(const uint8_t Data)
+uint8_t PPU::ReadPPUData()
 {
-	mMemory[mPPUADDR] = Data;
+	uint8_t OldBufferData = mPPUDataReadBuffer;
 
-	bool bIncrementMode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
+	if (mPPUADDR < 0x2000)
+	{
+		mPPUDataReadBuffer = mMemory[mPPUADDR];
+	}
+	else if (mPPUADDR < 0x3F00)
+	{
+		if (mRomData->NameTableLayout == ENameTableLayout::Horizontal)
+		{
+			uint16_t Temp = (mPPUADDR & 0x3FF) | (mPPUADDR & 0x800) >> 1;
+			Temp += 0x2000;
+
+			mPPUDataReadBuffer = mMemory[Temp];
+		}
+		else
+		{
+			uint16_t Temp = mPPUADDR & 0x7FF;
+			Temp += 0x2000;
+
+			mPPUDataReadBuffer = mMemory[Temp];
+		}
+	}
+	else
+	{
+		uint16_t PalleteMask = (mPPUADDR & 3) == 0 ? 0x0F : 0x1F;
+		mPPUDataReadBuffer = mPalleteMemory[mPPUADDR & PalleteMask];
+	}
+
+	bool bIncrement32Mode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
 
 	// 32 Down...Where?
-	uint16_t Offset = bIncrementMode ? 32 : 1;
+	uint16_t Offset = bIncrement32Mode ? 32 : 1;
+
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU read PPU Data! {0}\n", Offset);
+
+	// PPUADDR is limited to 14 bits.
+	mPPUADDR += Offset;
+	mPPUADDR &= 0x3FFF;
+
+	return OldBufferData;
+}
+
+void PPU::WritePPUData(const uint8_t Data)
+{
+	if (mPPUADDR < 0x2000)
+	{
+		if (mRomData->ChrRomMemory.size() == 0)
+		{
+			mMemory[mPPUADDR] = Data;
+		}
+	}
+	else if (mPPUADDR < 0x3F00)
+	{
+		if (mRomData->NameTableLayout == ENameTableLayout::Horizontal)
+		{
+			uint16_t Temp = (mPPUADDR & 0x3FF) | (mPPUADDR & 0x800) >> 1;
+			Temp += 0x2000;
+
+			mMemory[Temp] = Data;
+		}
+		else
+		{
+			uint16_t Temp = mPPUADDR & 0x7FF;
+			Temp += 0x2000;
+
+			mMemory[Temp] = Data;
+		}
+	}
+	else
+	{
+		uint16_t PalleteMask = (mPPUADDR & 3) == 0 ? 0x0F : 0x1F;
+		mPalleteMemory[mPPUADDR & PalleteMask] = Data;
+	}
+
+	bool bIncrement32Mode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
+
+	// 32 Down...Where?
+	uint16_t Offset = bIncrement32Mode ? 32 : 1;
 
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Data! {0}\n", Offset);
 
+	// PPUADDR is limited to 14 bits.
 	mPPUADDR += Offset;
+	mPPUADDR &= 0x3FFF;
 }
 
 void PPU::ClearWRegister()
