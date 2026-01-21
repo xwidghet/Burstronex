@@ -12,19 +12,30 @@ layout(std430, binding = 0) buffer PPUMemory
 
 void main()
 {
-	int PatternTableOffset = 0;
-
-	const int Stride = 16 * 16;
-
 	vec2 PatternCoordinates = QuadCoordinate;
 
-	// 256 Tile Grid, 16x16
-	const int X = int(PatternCoordinates.x * 16.0);
-	const int Y = int((PatternCoordinates.y) * 16.0);
+	// First two bits of PPUCTRL contain the offset.
+	int NameTableAddress = 0x2000 + 0x400 * (mPPUCTRL & 0x3);
+	int SpritePatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
+	int BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 5)) != 0);
+
+	// 0: 8x8, 1: 8x16
+	bool SpriteSizeMode = (mPPUCTRL & (1 << 6)) != 0;
+
+	// 32x30 Grid, 1 byte per cell
+	const int NameCellX = int(PatternCoordinates.x * 32.0);
+	const int NameCellY = int((PatternCoordinates.y) * 30.0);
+
+	const int CellData = mPPUMemory[NameTableAddress + NameCellX + NameCellY*32];
+
+	// 8x8 Character tiles filling 256x240 pixels
+	const int X = int(PatternCoordinates.x * 32.0);
+	const int Y = int((PatternCoordinates.y) * 30.0);
+
+	int TileCorner = BackgroundPatternTableAddress + CellData;
 
 	// Get Tile Top Left Corner
-	int TileCorner = X*16 + Y*Stride + PatternTableOffset;
-	int XPixel = int(PatternCoordinates.x * 128.0) % 16;
+	int XPixel = int(PatternCoordinates.x * 128.0) % 8;
 	int YPixel = int(PatternCoordinates.y * 128.0) % 8;
 
 	// Each Tile is 16 Bytes, where X coordinate is in the bits stored accross two bytes.
@@ -33,7 +44,7 @@ void main()
 
 	// Read specific pixel in this tile.
 	// Pixels are stored in reverse bit order.
-	int PixelIndex = 7 - int(PatternCoordinates.x * 128.0) % 8;
+	int PixelIndex = 7 - XPixel;
 	bool TileData0 = (Byte0 & (1 << PixelIndex)) != 0;
 	bool TileData1 = (Byte1 & (1 << PixelIndex)) != 0;
 
