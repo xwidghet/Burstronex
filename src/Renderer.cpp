@@ -283,19 +283,14 @@ void Renderer::FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height
 
 void Renderer::ApplyIntegerScaling(GLFWwindow* Window, int Width, int Height)
 {
-    // Seems to be a GLFW bug that I *must* set viewport only on linux to display the correct area
+    // Seems to be a GLFW bug that I *must* set viewport only on linux to display the correct area on window creation.
+    // Theory: On Wayland before a frame has been displayed the window isn't displayed, which probably breaks it.
+    //
     // While I'm here, might as well do aspect ratio correction to ensure pixels are square.
-    float XScale, YScale;
-    glfwGetWindowContentScale(Window, &XScale, &YScale);
-    glfwGetWindowSize(Window, &Width, &Height);
-
-    Height *= YScale;
-    Width *= XScale;
-
-    GLsizei ScalerTarger = Height <= Width ? Height : Width;
+    GLsizei ScalerTarget = Height <= Width ? Height : Width;
 
     // Todo: The output has some non-square pixels, so there's an issue here or in the shader (Pallete).
-    GLsizei TargetScaleRatio = ScalerTarger / 262;
+    GLsizei TargetScaleRatio = ScalerTarget / 262;
 
     GLsizei TargetHeight = 262*TargetScaleRatio;
     GLsizei TargetWidth = 262*TargetScaleRatio;
