@@ -71,12 +71,18 @@ void Renderer::Tick()
 
     InitDrawData();
 
-    // GLFW bug on Linux? Doesn't happen on windows
-#ifdef __linux__
+    // Seems to be a GLFW bug that I *must* set viewport only on linux to display the correct area
+    // While I'm here, might as well do aspect ratio correction to ensure pixels are square.
     float XScale, YScale;
     glfwGetWindowContentScale(mWindow, &XScale, &YScale);
-    glViewport(0, 0, 1440*XScale, 1080*YScale);
-#endif
+
+    int Width, Height;
+    glfwGetWindowSize(mWindow, &Width, &Height);
+
+    // Todo: Replace with integer multiple, as this solution results in some pixels being too wide.
+    float TargetWidth = Height * 1.175;
+    float XOffset = float(Width - TargetWidth)*0.5f;
+    glViewport(XOffset*XScale, 0, TargetWidth*XScale, Height*YScale);
 
     while(!glfwWindowShouldClose(mWindow))
     {
