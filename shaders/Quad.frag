@@ -16,8 +16,8 @@ void main()
 
 	// First two bits of PPUCTRL contain the offset.
 	int NameTableAddress = 0x2000 + 0x400 * (mPPUCTRL & 0x3);
-	int SpritePatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
-	int BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 5)) != 0);
+	int SpritePatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 3)) != 0);
+	int BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
 
 	// 0: 8x8, 1: 8x16
 	bool SpriteSizeMode = (mPPUCTRL & (1 << 6)) != 0;
