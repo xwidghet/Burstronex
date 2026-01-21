@@ -92,7 +92,6 @@ void PPU::ExecuteCycle()
 		mPPUCTRL = mRAM->ReadRegister(PPUCTRL_ADDRESS);
 		mPPUMASK = mRAM->ReadRegister(PPUMASK_ADDRESS);
 		mPPUSCROLL = mRAM->ReadRegister(PPUSCROLL_ADDRESS);
-		mPPUADDR = mRAM->ReadRegister(PPUADDR_ADDRESS);
 	}
 
 	mPPUSTATUS = mRAM->ReadRegister(PPUSTATUS_ADDRESS);
@@ -186,6 +185,34 @@ bool PPU::ReadNMIOutput()
 	}
 
 	return bIsNMIEnabled;
+}
+
+void PPU::WritePPUADDR(const uint8_t Data)
+{
+	// High first, low second
+	const uint8_t WriteData = mRegisters.w ?  Data : uint16_t(Data << 8);
+	const uint8_t ClearMask = 0xFFFF << (mRegisters.w ? 0 : 8);
+
+	mPPUADDR &= ~ClearMask;
+	mPPUADDR |= WriteData;
+
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Address! {0:X}\n", mPPUADDR);
+
+	ToggleWRegister();
+}
+
+void PPU::WriteData(const uint8_t Data)
+{
+	mMemory[mPPUADDR] = Data;
+
+	bool bIncrementMode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
+
+	// 32 Down...Where?
+	uint16_t Offset = bIncrementMode ? 32 : 0;
+
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Data! {0}\n", Offset);
+
+	mPPUADDR += Offset;
 }
 
 void PPU::ClearWRegister()

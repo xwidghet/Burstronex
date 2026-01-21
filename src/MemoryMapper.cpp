@@ -103,7 +103,17 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
 
     uint32_t TargetAddress = MapAddress(Address);
 
-    if (Address == PPUADDR_ADDRESS || Address == PPUSCROLL_ADDRESS)
+    if (Address == PPUADDR_ADDRESS)
+    {
+        mPPU->WritePPUADDR(Value);
+        return;
+    }
+    else if (Address == PPUDATA_ADDRESS)
+    {
+        mPPU->WriteData(Value);
+        return;
+    }
+    else if (Address == PPUSCROLL_ADDRESS)
     {
         mPPU->ToggleWRegister();
     }

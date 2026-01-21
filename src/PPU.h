@@ -306,7 +306,7 @@ class PPU {
 	uint8_t mOAMADDR;
 	uint8_t mOAMDATA;
 	uint8_t mPPUSCROLL;
-	uint8_t mPPUADDR;
+	uint16_t mPPUADDR;
 
 	// Writes to this address adds 1 or 32 to register v depending on VRAM incremement bit set in PPUCTRL_ADDRESS
 	// During rendering (pre-render lines and visibible lines 0-239), triggers both coarse X increment and Y increment (with wrapping).
@@ -398,6 +398,10 @@ public:
 	void Execute(const uint8_t CPUCycles);
 
 	bool ReadNMIOutput();
+
+	void WritePPUADDR(const uint8_t Data);
+
+	void WriteData(const uint8_t Data);
 
 	void ClearWRegister();
 
