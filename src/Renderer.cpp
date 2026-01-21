@@ -71,18 +71,11 @@ void Renderer::Tick()
 
     InitDrawData();
 
-    // Seems to be a GLFW bug that I *must* set viewport only on linux to display the correct area
-    // While I'm here, might as well do aspect ratio correction to ensure pixels are square.
-    float XScale, YScale;
-    glfwGetWindowContentScale(mWindow, &XScale, &YScale);
-
     int Width, Height;
-    glfwGetWindowSize(mWindow, &Width, &Height);
+    glfwGetFramebufferSize(mWindow, &Width, &Height);
 
-    // Todo: Replace with integer multiple, as this solution results in some pixels being too wide.
-    float TargetWidth = Height * 1.175;
-    float XOffset = float(Width - TargetWidth)*0.5f;
-    glViewport(XOffset*XScale, 0, TargetWidth*XScale, Height*YScale);
+    ApplyIntegerScaling(mWindow, Width, Height);
+    glfwSetFramebufferSizeCallback(mWindow, FramebufferSizeCallback);
 
     while(!glfwWindowShouldClose(mWindow))
     {
@@ -281,6 +274,35 @@ void Renderer::RenderDebug()
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void Renderer::FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height)
+{
+    ApplyIntegerScaling(Window, Width, Height);
+}
+
+void Renderer::ApplyIntegerScaling(GLFWwindow* Window, int Width, int Height)
+{
+    // Seems to be a GLFW bug that I *must* set viewport only on linux to display the correct area
+    // While I'm here, might as well do aspect ratio correction to ensure pixels are square.
+    float XScale, YScale;
+    glfwGetWindowContentScale(Window, &XScale, &YScale);
+    glfwGetWindowSize(Window, &Width, &Height);
+
+    Height *= YScale;
+    Width *= XScale;
+
+    GLsizei ScalerTarger = Height <= Width ? Height : Width;
+
+    // Todo: The output has some non-square pixels, so there's an issue here or in the shader (Pallete).
+    GLsizei TargetScaleRatio = ScalerTarger / 262;
+
+    GLsizei TargetHeight = 262*TargetScaleRatio;
+    GLsizei TargetWidth = 262*TargetScaleRatio;
+
+    GLint XOffset = ((Width - TargetWidth)*0.5f);
+    GLint YOffset = ((Height - TargetHeight)*0.5f);
+    glViewport(XOffset, YOffset, TargetWidth, TargetHeight);
 }
 
 void Renderer::DrawPallete()

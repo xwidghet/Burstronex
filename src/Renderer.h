@@ -77,6 +77,10 @@ private:
 
     void RenderFrame();
 
+    static void FramebufferSizeCallback(GLFWwindow* Window, int Width, int Height);
+
+    static void ApplyIntegerScaling(GLFWwindow* Window, int Width, int Height);
+
     void RenderDebug();
 
     void DrawPallete();
