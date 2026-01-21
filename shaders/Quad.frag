@@ -12,15 +12,11 @@ layout(std430, binding = 0) buffer PPUMemory
 
 void main()
 {
-	vec4 Color = vec4(0);
+	int PatternTableOffset = 0;
 
-	/* Currently copy of Pallete Shader, but this will be useful later
 	const int Stride = 16 * 16;
 
-	int PatternTableOffset = QuadCoordinate.x > 0.5 ? 4096 : 0;
-
 	vec2 PatternCoordinates = QuadCoordinate;
-	PatternCoordinates.x = fract(PatternCoordinates.x * 2);
 
 	// 256 Tile Grid, 16x16
 	const int X = int(PatternCoordinates.x * 16.0);
@@ -41,6 +37,7 @@ void main()
 	bool TileData0 = (Byte0 & (1 << PixelIndex)) != 0;
 	bool TileData1 = (Byte1 & (1 << PixelIndex)) != 0;
 
+	vec4 Color = vec4(0);
 	if (TileData0 && !TileData1)
 		Color = vec4(1, 0, 0, 1);
 	else if (!TileData0 && TileData1)
@@ -49,7 +46,6 @@ void main()
 		Color = vec4(0, 0, 1, 1);
 	else if (TileData0 && TileData1)
 		Color = vec4(1, 1, 0, 1);
-	*/
 
-	FragColor = vec4(QuadCoordinate.x, QuadCoordinate.y, 1.0f, 1.0f);
+	FragColor = Color;
 }

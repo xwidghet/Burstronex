@@ -6,12 +6,10 @@
 
 Shader::Shader(const std::string& VertexPath, const std::string& FragmentPath)
 {
-    unsigned int VertexShader = 0;
-    unsigned int FragmentShader = 0;
-    CompileShader(VertexPath, GL_VERTEX_SHADER, VertexShader);
-    CompileShader(FragmentPath, GL_FRAGMENT_SHADER, FragmentShader);
+    mVertexPath = VertexPath;
+    mFragmentPath = FragmentPath;
 
-    CreateAndLinkProgram(VertexShader, FragmentShader);
+    CreateAndLinkProgram();
 }
 
 void Shader::Use()
@@ -19,8 +17,22 @@ void Shader::Use()
     glUseProgram(mShaderProgram);
 }
 
-void Shader::CreateAndLinkProgram(unsigned int VertexShader, unsigned int FragmentShader)
+void Shader::Reload()
 {
+    glDeleteProgram(mShaderProgram);
+    mShaderProgram = 0;
+
+    CreateAndLinkProgram();
+}
+
+void Shader::CreateAndLinkProgram()
+{
+    unsigned int VertexShader = 0;
+    unsigned int FragmentShader = 0;
+
+    CompileShader(mVertexPath, GL_VERTEX_SHADER, VertexShader);
+    CompileShader(mFragmentPath, GL_FRAGMENT_SHADER, FragmentShader);
+
     mShaderProgram = glCreateProgram();
 
     glAttachShader(mShaderProgram, VertexShader);

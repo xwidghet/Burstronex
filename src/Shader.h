@@ -7,14 +7,18 @@
 
 class Shader {
 	unsigned int mShaderProgram;
+	std::string mVertexPath;
+	std::string mFragmentPath;
 
 public:
 	Shader(const std::string& VertexPath, const std::string& FragmentPath);
 
 	void Use();
 
+	void Reload();
+
 private:
-	void CreateAndLinkProgram(unsigned int VertexProgram, unsigned int FragmentProgram);
+	void CreateAndLinkProgram();
 
 	void CompileShader(const std::string& PathToShader, GLenum Type, unsigned int& ShaderStorage);
 

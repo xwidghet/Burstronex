@@ -267,6 +267,12 @@ void Renderer::RenderDebug()
             mbShowPallete = !mbShowPallete;
         }
 
+        if (ImGui::Button("Recompile Shaders"))
+        {
+            mQuadShader->Reload();
+            mPalleteShader->Reload();
+        }
+
         ImGui::End();
     }
 
