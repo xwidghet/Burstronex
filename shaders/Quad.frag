@@ -23,8 +23,9 @@ void main()
 	bool SpriteSizeMode = (mPPUCTRL & (1 << 5)) != 0;
 
 	// 32x30 Grid, 1 byte per cell
+	// Why does making Y a 32 grid fix it? Is it the boundary area, and it's 30 with that removed??
 	const int NameCellX = int(PatternCoordinates.x * 32.0);
-	const int NameCellY = int((PatternCoordinates.y) * 30.0);
+	const int NameCellY = int(PatternCoordinates.y * 32.0);
 
 	const int CellData = mPPUMemory[NameTableAddress + NameCellX + NameCellY*32];
 
