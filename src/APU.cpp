@@ -256,13 +256,13 @@ void APU::ExecuteMode1Sequencer()
 
 void APU::HalfFrame()
 {
-    bool bPulse1Infinite = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::ENVELOPE_LOOP));
-    bool bPulse2Infinite = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::ENVELOPE_LOOP));
-    mPulse1.ClockLengthCounter(bPulse1Infinite);
-    mPulse2.ClockLengthCounter(bPulse2Infinite);
+    bool bPulse1Infinite = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP));
+    bool bPulse2Infinite = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP));
+    mPulse1.ClockLengthCounter(bPulse1Infinite, mRegisters.Pulse1_LengthCounter);
+    mPulse2.ClockLengthCounter(bPulse2Infinite, mRegisters.Pulse1_LengthCounter);
 
-    mPulse1.ClockSweep(mRAM, mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
-    mPulse2.ClockSweep(mRAM, mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
+    mPulse1.ClockSweep(mRegisters.Pulse1_Sweep);
+    mPulse2.ClockSweep(mRegisters.Pulse2_Sweep);
 
     // Clock Length Counters
 }
@@ -270,8 +270,8 @@ void APU::HalfFrame()
 void APU::QuarterFrame()
 {
     // Clock Envelopes and Triangle linear counter.
-    mPulse1.ClockEnvelope(mRegisters.Pulse1_Timer);
-    mPulse2.ClockEnvelope(mRegisters.Pulse2_Timer);
+    mPulse1.ClockEnvelope(mRegisters.Pulse1_Envelope);
+    mPulse2.ClockEnvelope(mRegisters.Pulse2_Envelope);
 }
 
 float APU::DACOutput()
@@ -325,6 +325,14 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
     uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
     mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 
+    uint16_t Timer = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    Timer |= mRegisters.Pulse1_Timer;
+
+    mPulse2.mSweep.mTargetPeriod = Timer;
+    mPulse1.mSweep.mTargetPeriod += 1;
+    mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
+    mPulse1.mSweep.mRegisterPeriod = mPulse1.mSweep.mPeriod;
+
     mPulse1.mSequencerIndex = 0;
     mPulse1.mEnvelope.mbReloadFlag = true;
     mPulse1.mSweep.mbReloadFlag = true;
@@ -350,6 +358,14 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     mRegisters.Pulse2_Sweep = Data;
     uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
     mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+
+    uint16_t Timer = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    Timer |= mRegisters.Pulse2_Timer;
+
+    mPulse2.mSweep.mTargetPeriod = Timer;
+    mPulse2.mSweep.mTargetPeriod += 1;
+    mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
+    mPulse2.mSweep.mRegisterPeriod = mPulse2.mSweep.mPeriod;
 
     mPulse2.mSequencerIndex = 0;
 
@@ -459,22 +475,34 @@ float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
 
 uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
 {
-    uint8_t Value = mEnvelope.mValue;
+    uint8_t Value = 1;
     Value *= !mSweep.mbIsMutingChannel;
     Value *= mLengthCounter > 0;
 
     // Sequencer Begin
-    uint8_t Duty = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::DUTY)) >> 6;
-    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (mSequencerIndex % 8))) != 0;
+    uint8_t Duty = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
+    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (7 - mSequencerIndex))) != 0;
     Value *= SequencerOutput;
 
-    Value *= mLengthCounter < 8 ? 0 : 1;
+    if (mSweep.mPeriod > 0)
+    {
+        mSweep.mPeriod -= 1;
+
+        if (mSweep.mPeriod == 0)
+        {
+            mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
+            mSweep.mPeriod = mSweep.mRegisterPeriod;
+        }
+    }
+
+    // Target period?
+    Value *= mSweep.mPeriod < 8 ? 0 : 1;
     // Sequencer End
 
-    return Value;
+    return Value*mEnvelope.mValue;
 }
 
-void APU::PulseUnit::ClockEnvelope(uint8_t& TimerRegister)
+void APU::PulseUnit::ClockEnvelope(uint8_t& EnvelopeRegister)
 {
     if (mEnvelope.mbReloadFlag)
     {
@@ -482,14 +510,14 @@ void APU::PulseUnit::ClockEnvelope(uint8_t& TimerRegister)
 
         mEnvelope.mValue = 15;
 
-        mEnvelope.mDivider = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
         mEnvelope.mDivider += 1;
     }
     else
     {
         if (mEnvelope.mDivider == 0)
         {
-            bool bLoop = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::ENVELOPE_LOOP)) != 0;
+            bool bLoop = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
             if (bLoop && mEnvelope.mValue == 0)
             {
                 mEnvelope.mValue = 15;
@@ -499,46 +527,36 @@ void APU::PulseUnit::ClockEnvelope(uint8_t& TimerRegister)
                 mEnvelope.mValue -= mEnvelope.mDivider;
             }
 
-            mEnvelope.mDivider = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
             mEnvelope.mDivider += 1;
         }
-
-        mEnvelope.mDivider -= 1;
+        else
+        {
+            mEnvelope.mDivider -= 1;
+        }
     }
 
-    bool bConstantVolume = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
+    bool bConstantVolume = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
     if (bConstantVolume)
     {
-        mEnvelope.mValue = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
     }
 }
 
-void APU::PulseUnit::ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
+void APU::PulseUnit::ClockSweep(uint8_t& SweepRegister)
 {
     // Period always iterates, but only writes back the new value when not muted, is enabled, and shift count is non-zero.
-    uint16_t Period = mLengthCounter;
-
     mSweep.mbIsEnabled = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED);
     uint8_t ShiftCount = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
-
-    /*
-    int32_t Change = ShiftCount == 0 ? Period : 0;
-    for (int i = 0; i < ShiftCount; i++)
-    {
-        Change |= Period & (1 << i);
-    }
-    Period = Period >> ShiftCount;
-    */
-    int32_t Change = ShiftCount == 0 ? Period : Period >> ShiftCount;
-
     bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
 
     // Pulse1 uses ones compliment
-    Change = bNegateFlag ? (~Change + mbIsPulse2) : Change;
-    Period = std::max(Period + Change, 0);
+    int32_t Change = mSweep.mTargetPeriod >> ShiftCount;
+    mSweep.mTargetPeriod = bNegateFlag ? (mSweep.mPeriod + Change + mbIsPulse2) : mSweep.mPeriod - Change;
+    //mSweep.mTargetPeriod = std::max(mSweep.mPeriod  + Change, 0);
 
-    mSweep.mbIsMutingChannel = Change > 0x7FF ? 0 : 1;
-    mSweep.mbIsMutingChannel |= Period < 8 ? 0 : 1;
+    mSweep.mbIsMutingChannel = mSweep.mTargetPeriod > 0x7FF ? 1 : 0;
+    mSweep.mbIsMutingChannel |= mSweep.mPeriod < 8 ? 1 : 0;
 
     if (mSweep.mDivider > 0)
     {
@@ -547,11 +565,17 @@ void APU::PulseUnit::ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegiste
         // Does Sweep Divider clock the sweep unit only when it hits zero like the envelope?
         if (mSweep.mDivider == 0)
         {
+
             if (mSweep.mbIsEnabled && ShiftCount > 0)
             {
                 if (!mSweep.mbIsMutingChannel)
                 {
-                    mLengthCounter = Period;
+                    mSweep.mPeriod = mSweep.mTargetPeriod;
+                }
+                else
+                {
+                    mSweep.mDivider = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
+                    mSweep.mDivider += 1;
                 }
             }
         }
@@ -566,7 +590,7 @@ void APU::PulseUnit::ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegiste
     }
 }
 
-void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
+void APU::PulseUnit::ClockLengthCounter(bool bInfinite, uint8_t LengthCounter)
 {
     // Infinite doesn't modify it at all, so if it's at 0 it stays at zero.
     if (bInfinite)
@@ -575,10 +599,5 @@ void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
     if (mLengthCounter > 0)
     {
         mLengthCounter -= 1;
-
-        if (mLengthCounter == 0)
-        {
-            mSequencerIndex += 1;
-        }
     }
 }

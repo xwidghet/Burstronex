@@ -12,14 +12,14 @@ class ma_device;
 
 static const uint32_t TARGET_SAMPLE_RATE = 48000;
 
-static const uint16_t PULSE1_TIMER_ADDRESS = 0x4000;
+static const uint16_t PULSE1_ENVELOPE_ADDRESS = 0x4000;
 static const uint16_t PULSE1_SWEEP_ADDRESS = 0x4001;
-static const uint16_t PULSE1_ENVELOPE_ADDRESS = 0x4002;
+static const uint16_t PULSE1_TIMER_ADDRESS = 0x4002;
 static const uint16_t PULSE1_LENGTHCOUNTER_ADDRESS = 0x4003;
 
-static const uint16_t PULSE2_TIMER_ADDRESS = 0x4004;
+static const uint16_t PULSE2_ENVELOPE_ADDRESS = 0x4004;
 static const uint16_t PULSE2_SWEEP_ADDRESS = 0x4005;
-static const uint16_t PULSE2_ENVELOPE_ADDRESS = 0x4006;
+static const uint16_t PULSE2_TIMER_ADDRESS = 0x4006;
 static const uint16_t PULSE2_LENGTHCOUNTER_ADDRESS = 0x4007;
 
 static const uint16_t TRIANGLE_TIMER_ADDRESS = 0x4008;
@@ -47,8 +47,7 @@ static const uint32_t PAL_FRAME_INTERRUPT_CYCLE_COUNT = 33254;
 static const uint32_t NTSC_SEQUENCE_STEP_CYCLE_COUNT = 3728;
 static const uint32_t PAL_SEQUENCE_STEP_CYCLE_COUNT = 4156;
 
-// PULSE_TIMER_ADDRESS
-enum class EPULSE_TIMER_MASKS : uint8_t {
+enum class EPULSE_ENVELOPE_MASKS : uint8_t {
     // D, Width of the pulse
     DUTY = 0b11000000,
     // L, 1 = Infinite, 0 = One Shot. If 1, Length Counter is frozen and envelope repeats forever.
@@ -62,22 +61,6 @@ enum class EPULSE_TIMER_MASKS : uint8_t {
     VOLUME_ENVELOPE = 0b00001111
 };
 
-// PULSE_LENGTHCOUNTER_ADDRESS
-enum class EPULSE_LENGTH_COUNTER_MASKS : uint8_t {
-    // L
-    LENGTH_COUNTER_LOAD = 0b11111000,
-    // T
-    TIMER_HIGH = 0b00000111
-};
-
-// PULSE_ENVELOPE_ADDRESS
-enum class EPULSE_ENVELOPE_MASKS : uint8_t {
-    // T
-    TIMER_LOW = 0b11111111
-};
-
-// PULSE_SWEEP_ADDRESS
-// When written, reloads length counter, restarts envelope, resets phase of pulse generator.
 enum class EPULSE_SWEEP_MASKS : uint8_t {
     // E
     SWEEP_UNIT_ENABLED = 0b10000000,
@@ -88,6 +71,20 @@ enum class EPULSE_SWEEP_MASKS : uint8_t {
     // S
     SWEEP_UNIT_SHIFT = 0b00000111
 };
+
+enum class EPULSE_TIMER_MASKS : uint8_t {
+    // T
+    TIMER_LOW = 0b11111111
+};
+
+// When written, reloads length counter, restarts envelope, resets phase of pulse generator.
+enum class EPULSE_LENGTH_COUNTER_MASKS : uint8_t {
+    // L
+    LENGTH_COUNTER_LOAD = 0b11111000,
+    // T
+    TIMER_HIGH = 0b00000111
+};
+
 
 // TRIANGLE_TIMER_ADDRESS
 enum class ETRIANGLE_TIMER_MASKS : uint8_t {
@@ -315,6 +312,9 @@ class APU {
         bool mbReloadFlag = false;
 
         uint8_t mLastSweepRegister = 0;
+        uint16_t mPeriod = 0;
+        uint16_t mTargetPeriod = 0;
+        uint16_t mRegisterPeriod = 0;
     };
 
     struct PulseUnit {
@@ -331,9 +331,9 @@ class APU {
         uint8_t mLastPeriod = 0;
         bool mbLastSweepEnabled = false;
 
-        void ClockEnvelope(uint8_t& TimerRegister);
-        void ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
-        void ClockLengthCounter(bool bInfinite);
+        void ClockEnvelope(uint8_t& EnvelopeRegister);
+        void ClockSweep(uint8_t& SweepRegister);
+        void ClockLengthCounter(bool bInfinite, uint8_t LengthCounterRegister);
         uint8_t Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
     };
 
