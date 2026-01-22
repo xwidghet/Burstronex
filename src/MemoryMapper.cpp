@@ -198,17 +198,16 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
             case TRIANGLE_LINEARCOUNTER_ADDRESS:
                 mAPU->WriteTriangle_LinearCounter(Value);
                 break;
-            case NOISE_TIMER_ADDRESS:
-                mAPU->WriteNoise_Timer(Value);
-                break;
-            case NOISE_LENGTHCOUNTER_ADDRESS:
-                mAPU->WriteNoise_LengthCounter(Value);
-                break;
             case NOISE_ENVELOPE_ADDRESS:
                 mAPU->WriteNoise_Envelope(Value);
                 break;
-            case NOISE_LINEARFEEDBACKSHIFTREGISTER_ADDRESS:
-                mAPU->WriteNoise_LinearFeedbackShiftRegister(Value);
+            case NOISE_UNUSED:
+                break;
+            case NOISE_MODE_PERIOD_ADDRESS:
+                mAPU->WriteNoise_ModePeriod(Value);
+                break;
+            case NOISE_LENGTHCOUNTER_ADDRESS:
+                mAPU->WriteNoise_LengthCounter(Value);
                 break;
             case DMC_TIMER_ADDRESS:
                 mAPU->WriteDMC_Timer(Value);

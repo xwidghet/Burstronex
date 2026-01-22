@@ -28,10 +28,10 @@ static const uint16_t TRIANGLE_LINEARCOUNTER_ADDRESS = 0x4008;
 static const uint16_t TRIANGLE_TIMER_ADDRESS = 0x400A;
 static const uint16_t TRIANGLE_LENGTHCOUNTER_ADDRESS = 0x400B;
 
-static const uint16_t NOISE_TIMER_ADDRESS = 0x400C;
-static const uint16_t NOISE_LENGTHCOUNTER_ADDRESS = 0x400D;
-static const uint16_t NOISE_ENVELOPE_ADDRESS = 0x400E;
-static const uint16_t NOISE_LINEARFEEDBACKSHIFTREGISTER_ADDRESS = 0x400F;
+static const uint16_t NOISE_ENVELOPE_ADDRESS = 0x400C;
+static const uint16_t NOISE_UNUSED = 0x400D;
+static const uint16_t NOISE_MODE_PERIOD_ADDRESS = 0x400E;
+static const uint16_t NOISE_LENGTHCOUNTER_ADDRESS = 0x400F;
 
 static const uint16_t DMC_TIMER_ADDRESS = 0x4010;
 static const uint16_t DMC_MEMORYREADER_ADDRESS= 0x4011;
@@ -110,8 +110,7 @@ enum class ETRIANGLE_LENGTHCOUNTER_MASKS : uint8_t {
     TIMER_HIGH = 0b00000111
 };
 
-// NOISE_TIMER_ADDRESS
-enum class ENOISE_TIMER_MASKS : uint8_t {
+enum class ENOISE_ENVELOPE_MASKS : uint8_t {
     // L
     ENVELOPE_LOOP_LENGTH_COUNTER_HALT = 0b00100000,
     // C
@@ -120,8 +119,7 @@ enum class ENOISE_TIMER_MASKS : uint8_t {
     VOLUME_ENVELOPE = 0b00001111
 };
 
-// NOISE_ENVELOPE_ADDRESS
-enum class ENOISE_ENVELOPE_MASKS : uint8_t {
+enum class ENOISE_MODE_PERIOD_MASKS : uint8_t {
     // M, When set, period is drastically shortened
     //    Buzzing/Metalic tone, depending on what bits happen to be in the generator when switched to periodic.
     NOISE_MODE = 0b10000000,
@@ -129,8 +127,7 @@ enum class ENOISE_ENVELOPE_MASKS : uint8_t {
     NOISE_PERIOD = 0b00001111
 };
 
-// NOISE_LINEARFEEDBACKSHIFTREGISTER_ADDRESS
-enum class ENOISE_LINEARFEEDBACKSHIFTREGISTER_MASKS : uint8_t {
+enum class ENOISE_LENGTHCOUNTER_MASKS : uint8_t {
     // L
     LENGTH_COUNTER_LOAD = 0b11111000,
 };
@@ -262,10 +259,9 @@ class APU {
         uint8_t Triangle_LengthCounter;
         uint8_t Triangle_LinearCounter;
 
-        uint8_t Noise_Timer;
-        uint8_t Noise_LengthCounter;
         uint8_t Noise_Envelope;
-        uint8_t Noise_LinearFeedbackShiftRegister;
+        uint8_t Noise_ModePeriod;
+        uint8_t Noise_LengthCounter;
 
         uint8_t DMC_Timer;
         uint8_t DMC_MemoryReader;
@@ -353,10 +349,29 @@ class APU {
         void ClockSequencer();
     };
 
+    struct NoiseUnit {
+        uint8_t mTimer = 0;
+        EnvelopeUnit mEnvelope;
+        uint8_t mLengthCounter = 0;
+        uint16_t mLFSR = 1;
+
+        std::array<uint16_t, 16> mNoiseTimerLUT;
+
+        bool mbIsEnabled = false;
+        uint8_t mOutputSample = 0;
+
+        void ClockTimer(uint8_t& ModePeriodRegister);
+        void ClockEnvelope(uint8_t& EnvelopeRegister);
+        void ClockLengthCounter(const uint8_t EnvelopeRegister);
+        void ClockSequencer(uint8_t& ModePeriodRegister);
+    };
+
     PulseUnit mPulse1;
     PulseUnit mPulse2;
 
     TriangleUnit mTriangle;
+
+    NoiseUnit mNoise;
 
 public:
     APU();
@@ -382,10 +397,9 @@ public:
     void WriteTriangle_LengthCounter(const uint8_t Data);
     void WriteTriangle_LinearCounter(const uint8_t Data);
 
-    void WriteNoise_Timer(const uint8_t Data);
-    void WriteNoise_LengthCounter(const uint8_t Data);
     void WriteNoise_Envelope(const uint8_t Data);
-    void WriteNoise_LinearFeedbackShiftRegister(const uint8_t Data);
+    void WriteNoise_LengthCounter(const uint8_t Data);
+    void WriteNoise_ModePeriod(const uint8_t Data);
 
     void WriteDMC_Timer(const uint8_t Data);
     void WriteDMC_MemoryReader(const uint8_t Data);
