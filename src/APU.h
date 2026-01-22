@@ -330,6 +330,7 @@ class APU {
         uint8_t mLastPeriod = 0;
         bool mbLastSweepEnabled = false;
 
+        void ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCounterRegister);
         void ClockEnvelope(uint8_t& EnvelopeRegister);
         void ClockSweep(uint8_t& SweepRegister);
         void ClockLengthCounter(bool bInfinite, uint8_t LengthCounterRegister);

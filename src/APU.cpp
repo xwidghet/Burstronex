@@ -165,7 +165,8 @@ void APU::Execute(const uint8_t CPUCycles)
 
 void APU::ExecuteCycle()
 {
-
+    mPulse1.ClockSequencer(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter);
+    mPulse2.ClockSequencer(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter);
 }
 
 void APU::ExecuteSequencer()
@@ -196,15 +197,13 @@ void APU::ExecuteSequencer()
         mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "APU Buffer: {0}%\n", mAudioBuffer.GetPercentageFilled());
     }
 
-    if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)
+    if ((mCyclesSinceFrameInterrupt % mSequenceCycleInterval) == 0)
     {
         if (Mode == 0)
             ExecuteMode0Sequencer();
         else
             ExecuteMode1Sequencer();
     }
-
-    mSequenceCycleCount++;
 }
 
 void APU::ExecuteMode0Sequencer()
@@ -456,6 +455,8 @@ void APU::WriteStatus(const uint8_t Data)
 void APU::WriteFrameCounter(const uint8_t Data)
 {
     mRegisters.FrameCounter = Data;
+    mCyclesSinceFrameInterrupt = 0;
+    mSequenceIndex = 0;
 }
 
 float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
@@ -479,30 +480,33 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     Value *= !mSweep.mbIsMutingChannel;
     Value *= mLengthCounter > 0;
 
-    // Sequencer Begin
-    if (mSweep.mPeriod == 0)
-    {
-        mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
-
-        uint16_t Timer = uint16_t((LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH))) << 8;
-        Timer |= TimerRegister;
-        mSweep.mPeriod = Timer;
-    }
-
     uint8_t Duty = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
     uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (7 - mSequencerIndex))) != 0;
     Value *= SequencerOutput;
-
-    if (mSweep.mPeriod > 0)
-    {
-        mSweep.mPeriod -= 1;
-    }
 
     // Target period?
     Value *= mSweep.mPeriod < 8 ? 0 : 1;
     // Sequencer End
 
     return Value*mEnvelope.mValue;
+}
+
+void APU::PulseUnit::ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCounterRegister)
+{
+    // Sequencer Begin
+    if (mSweep.mPeriod == 0)
+    {
+        mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
+
+        uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+        Timer |= TimerRegister;
+        mSweep.mPeriod = Timer;
+    }
+
+    if (mSweep.mPeriod > 0)
+    {
+        mSweep.mPeriod -= 1;
+    }
 }
 
 void APU::PulseUnit::ClockEnvelope(uint8_t& EnvelopeRegister)
