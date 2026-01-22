@@ -464,9 +464,6 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     Value *= mLengthCounter > 0;
 
     // Sequencer Begin
-    // Incorrect?
-    mSequencerIndex += (mLengthCounter / 2) > 0;
-
     uint8_t Duty = (TimerRegister & static_cast<uint8_t>(EPULSE_TIMER_MASKS::DUTY)) >> 6;
     uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (mSequencerIndex % 8))) != 0;
     Value *= SequencerOutput;
@@ -524,12 +521,15 @@ void APU::PulseUnit::ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegiste
     mSweep.mbIsEnabled = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED);
     uint8_t ShiftCount = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
 
+    /*
     int32_t Change = ShiftCount == 0 ? Period : 0;
     for (int i = 0; i < ShiftCount; i++)
     {
         Change |= Period & (1 << i);
     }
     Period = Period >> ShiftCount;
+    */
+    int32_t Change = ShiftCount == 0 ? Period : Period >> ShiftCount;
 
     bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
 
@@ -572,5 +572,13 @@ void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
     if (bInfinite)
         return;
 
-    mLengthCounter = mLengthCounter > 0 ? mLengthCounter-- : 0;
+    if (mLengthCounter > 0)
+    {
+        mLengthCounter -= 1;
+
+        if (mLengthCounter == 0)
+        {
+            mSequencerIndex += 1;
+        }
+    }
 }
