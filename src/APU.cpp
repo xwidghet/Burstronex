@@ -203,6 +203,8 @@ void APU::ExecuteSequencer()
         else
             ExecuteMode1Sequencer();
     }
+
+    mSequenceCycleCount++;
 }
 
 void APU::ExecuteMode0Sequencer()
