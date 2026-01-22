@@ -28,7 +28,6 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     // Since it's only used for rendering, I can skip it for now.
     mChrRomLocation = 0x0000;
 
-    mControllerReadMask = 1;
     mController1Shift = 0;
     mController2Shift = 0;
 }
@@ -142,6 +141,16 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
     else if (TargetAddress == PPUCTRL_ADDRESS)
     {
         mPPU->WritePPUCTRL(Value);
+        return;
+    }
+    else if (TargetAddress == PPUSCROLL_ADDRESS)
+    {
+        mPPU->WritePPUSCROLL(Value);
+        return;
+    }
+    else if (TargetAddress == PPUMASK_ADDRESS)
+    {
+        mPPU->WritePPUMASK(Value);
         return;
     }
     else if (TargetAddress == CONTROLLER_STROBE_ADDRESS)

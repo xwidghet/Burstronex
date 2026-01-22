@@ -144,8 +144,8 @@ uint8_t CPU::ExecuteNextInstruction()
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
     auto OpCode = OpCodeDecoder::DecodeOpCode(PCData);
 
-    mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}\n", mRegisters.PC-1, OpCode.Name,
-              mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount);
+    mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}, PPU: {9}\n", mRegisters.PC-1, OpCode.Name,
+              mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount, mPPU->GetCycleCount());
 
     ExecuteInstruction(&OpCode);
     mCycleCount += OpCode.Cycles;
@@ -671,7 +671,7 @@ uint8_t CPU::ReadMemory(NESOpCode* OpCode)
             Address = mMemoryMapper->Read16Bit(mRegisters.PC);
             mRegisters.PC += 2;
 
-            mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read Absolute Address: {0:X}, {1:02X}\n", Address, mMemoryMapper->Read8Bit(Address));
+            //mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Read Absolute Address: {0:X}, {1:02X}\n", Address, mMemoryMapper->Read8Bit(Address));
 
             return mMemoryMapper->Read8Bit(Address);
             break;

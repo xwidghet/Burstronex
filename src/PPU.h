@@ -418,6 +418,10 @@ public:
 
 	void WritePPUData(const uint8_t Data);
 
+	void WritePPUSCROLL(const uint8_t Data);
+
+	void WritePPUMASK(const uint8_t Data);
+
 	void ClearWRegister();
 
 	void ToggleWRegister();

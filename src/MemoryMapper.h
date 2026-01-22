@@ -22,8 +22,6 @@ class MemoryMapper {
     PPU* mPPU;
     Renderer* mRenderer;
 
-    uint8_t mControllerReadMask = 1;
-
     uint8_t mController1Shift = 0;
     uint8_t mController2Shift = 0;
 
