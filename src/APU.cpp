@@ -156,6 +156,8 @@ void APU::Execute(const uint8_t CPUCycles)
     // Every CPU Cycle the APU outputs one sample
     for (int i = 0; i < CPUCycles; i++)
     {
+        mTriangle.ClockTimer(mRegisters.Triangle_Timer, mRegisters.Triangle_LengthCounter);
+
         //float NewSample = TestOutput(CPUCycles, i);
         float NewSample = DACOutput()*2.f - 1.f;
 
@@ -167,6 +169,9 @@ void APU::ExecuteCycle()
 {
     mPulse1.ClockSequencer(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter);
     mPulse2.ClockSequencer(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter);
+
+    mPulse1.Execute(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
+    mPulse2.Execute(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
 }
 
 void APU::ExecuteSequencer()
@@ -265,7 +270,7 @@ void APU::HalfFrame()
     mPulse1.ClockSweep(mRegisters.Pulse1_Sweep);
     mPulse2.ClockSweep(mRegisters.Pulse2_Sweep);
 
-    // Clock Length Counters
+    mTriangle.ClockLengthCounter(mRegisters.Triangle_LinearCounter);
 }
 
 void APU::QuarterFrame()
@@ -273,21 +278,20 @@ void APU::QuarterFrame()
     // Clock Envelopes and Triangle linear counter.
     mPulse1.ClockEnvelope(mRegisters.Pulse1_Envelope);
     mPulse2.ClockEnvelope(mRegisters.Pulse2_Envelope);
+
+    mTriangle.ClockLinearCounter(mRegisters.Triangle_LinearCounter);
 }
 
 float APU::DACOutput()
 {
-    uint8_t Triangle = 0;
+    uint8_t Triangle = mTriangle.mOutputSample;
     uint8_t Noise = 0;
     uint8_t DMC = 0;
-
-    uint8_t Pulse1 = mPulse1.Execute(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
-    uint8_t Pulse2 = mPulse2.Execute(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
 
     // Pulse, Triangle, and Noise should be 0-15
     // DMC should be 0-127
     // DAC Output is a float in the range [0.0, 1.0]
-    float PulseOut = SquareLUT[Pulse1 + Pulse2];
+    float PulseOut = SquareLUT[mPulse1.mOutputSample + mPulse2.mOutputSample];
 
     float TNDOut = TNDLUT[3*Triangle + 2*Noise + DMC];
 
@@ -372,6 +376,11 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     mPulse2.mSweep.mbReloadFlag = true;
 }
 
+void APU::WriteTriangle_LinearCounter(const uint8_t Data)
+{
+    mRegisters.Triangle_LinearCounter = Data;
+}
+
 void APU::WriteTriangle_Timer(const uint8_t Data)
 {
     mRegisters.Triangle_Timer = Data;
@@ -380,11 +389,15 @@ void APU::WriteTriangle_Timer(const uint8_t Data)
 void APU::WriteTriangle_LengthCounter(const uint8_t Data)
 {
     mRegisters.Triangle_LengthCounter = Data;
-}
+    mTriangle.mbLinearCounterReloadFlag = true;
 
-void APU::WriteTriangle_LinearCounter(const uint8_t Data)
-{
-    mRegisters.Triangle_LinearCounter = Data;
+    uint16_t Timer = uint16_t(mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
+    Timer |= mRegisters.Triangle_Timer + 1;
+
+    mTriangle.mTimer = Timer;
+
+    uint8_t LengthCounterIndex = (mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+    mTriangle.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 }
 
 void APU::WriteNoise_Timer(const uint8_t Data)
@@ -435,6 +448,14 @@ uint8_t APU::ReadStatus()
         Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING);
     if (mPulse2.mLengthCounter == 0)
         Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING);
+    if (mTriangle.mLengthCounter == 0)
+        Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING);
+
+    // Clears Frame Interrupt flag but not DMC Interrupt flag
+    mRegisters.Status &= ~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
+
+    // Are there multiple sources of IRQ?
+    mCPU->SetIRQ(false);
 
     return Output;
 }
@@ -446,9 +467,13 @@ void APU::WriteStatus(const uint8_t Data)
     // Todo: Implement all the other channels
     bool bPulse1LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING));
     bool bPulse2LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING));
+    bool bTrianglePlaying = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING));
 
     mPulse1.mLengthCounter = bPulse1LCHalt ? 0 : mPulse1.mLengthCounter;
     mPulse2.mLengthCounter = bPulse2LCHalt ? 0 : mPulse2.mLengthCounter;
+
+    mTriangle.mbIsEnabled = bTrianglePlaying;
+    mTriangle.mLengthCounter = bTrianglePlaying ? mTriangle.mLengthCounter : 0;
 }
 
 
@@ -474,7 +499,7 @@ float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
     return sin(Radian * 6.283185307f * (200 + 25 * cos(6.283185307f * Radian)));
 }
 
-uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
+void APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
 {
     uint8_t Value = 1;
     Value *= !mSweep.mbIsMutingChannel;
@@ -488,7 +513,7 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     Value *= mSweep.mPeriod < 8 ? 0 : 1;
     // Sequencer End
 
-    return Value*mEnvelope.mValue;
+    mOutputSample = Value*mEnvelope.mValue;
 }
 
 void APU::PulseUnit::ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCounterRegister)
@@ -607,4 +632,63 @@ void APU::PulseUnit::ClockLengthCounter(bool bInfinite, uint8_t LengthCounter)
     {
         mLengthCounter -= 1;
     }
+}
+
+void APU::TriangleUnit::ClockTimer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister)
+{
+    if (mTimer == 0)
+    {
+        if (mLinearCounter > 0 && mLengthCounter > 0)
+        {
+            ClockSequencer();
+        }
+
+        uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
+        Timer |= TimerRegister;
+
+        mTimer = Timer;
+    }
+    else if (mTimer > 0)
+    {
+        mTimer -= 1;
+    }
+
+}
+
+void APU::TriangleUnit::ClockLengthCounter(const uint8_t LinearCounterRegister)
+{
+    bool bHalt = (LinearCounterRegister & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LENGTH_COUNTER_HALT_LINEAR_COUNTER_CONTROL)) != 0;
+    if (bHalt)
+        return;
+
+    if (mLengthCounter > 0)
+    {
+        mLengthCounter -= 1;
+    }
+}
+
+void APU::TriangleUnit::ClockLinearCounter(const uint8_t LinearCounterRegister)
+{
+    bool bHalt = (LinearCounterRegister & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LENGTH_COUNTER_HALT_LINEAR_COUNTER_CONTROL)) != 0;
+
+    if (mbLinearCounterReloadFlag)
+    {
+        mLinearCounter = LinearCounterRegister & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LINEAR_COUNTER_LOAD);
+    }
+    else
+    {
+        if (mLinearCounter > 0)
+            mLinearCounter -= 1;
+    }
+
+    if (bHalt == false)
+    {
+        mbLinearCounterReloadFlag = false;
+    }
+}
+
+void APU::TriangleUnit::ClockSequencer()
+{
+    mSequenceIndex = mSequenceIndex < 31 ? mSequenceIndex + 1 : 0;
+    mOutputSample = mbIsEnabled * TRIANGLE_SEQUENCE_TABLE[mSequenceIndex];
 }

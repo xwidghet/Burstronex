@@ -22,11 +22,11 @@ static const uint16_t PULSE2_SWEEP_ADDRESS = 0x4005;
 static const uint16_t PULSE2_TIMER_ADDRESS = 0x4006;
 static const uint16_t PULSE2_LENGTHCOUNTER_ADDRESS = 0x4007;
 
-static const uint16_t TRIANGLE_TIMER_ADDRESS = 0x4008;
+static const uint16_t TRIANGLE_LINEARCOUNTER_ADDRESS = 0x4008;
 
 // Address at 0x400A because 0x4009 is unused
-static const uint16_t TRIANGLE_LENGTHCOUNTER_ADDRESS = 0x400A;
-static const uint16_t TRIANGLE_LINEARCOUNTER_ADDRESS = 0x400B;
+static const uint16_t TRIANGLE_TIMER_ADDRESS = 0x400A;
+static const uint16_t TRIANGLE_LENGTHCOUNTER_ADDRESS = 0x400B;
 
 static const uint16_t NOISE_TIMER_ADDRESS = 0x400C;
 static const uint16_t NOISE_LENGTHCOUNTER_ADDRESS = 0x400D;
@@ -85,9 +85,7 @@ enum class EPULSE_LENGTH_COUNTER_MASKS : uint8_t {
     TIMER_HIGH = 0b00000111
 };
 
-
-// TRIANGLE_TIMER_ADDRESS
-enum class ETRIANGLE_TIMER_MASKS : uint8_t {
+enum class ETRIANGLE_LINEAR_COUNTER_MASKS : uint8_t {
     // C, Controls Length Counter and Linear Counter at the same time.
     //    When set, halts the Length Counter,
     //    When set, prevents Linear Counter's internal reload flag from clearing, which halts it if TRIANGLE_LINEARCOUNTER_ADDRESS is written.
@@ -100,14 +98,12 @@ enum class ETRIANGLE_TIMER_MASKS : uint8_t {
     LINEAR_COUNTER_LOAD = 0b01111111
 };
 
-// TRIANGLE_LENGTHCOUNTER_ADDRESS
-enum class ETRIANGLE_LENGTHCOUNTER_MASKS : uint8_t {
+enum class ETRIANGLE_TIMER_MASKS : uint8_t {
     // T
     TIMER_LOW = 0b11111111
 };
 
-// TRIANGLE_LINEARCOUNTER_ADDRESS
-enum class ETRIANGLE_LINEARCOUNTER_MASKS : uint8_t {
+enum class ETRIANGLE_LENGTHCOUNTER_MASKS : uint8_t {
     // L
     LENGTH_COUNTER_LOAD = 0b11111000,
     // T, Timer High, and Linear Counter Reload somehow?
@@ -229,16 +225,22 @@ enum class EFRAME_COUNTER_MASKS : uint8_t {
     IRQ_INHIBIT = 0b01000000
 };
 
-static const std::array<uint8_t, 4> DUTY_CYCLE_SEQUENCES{
+static const std::array<uint8_t, 4> DUTY_CYCLE_SEQUENCES {
     0b01000000,
     0b01100000,
     0b01111000,
     0b10011111
 };
 
-static const std::array<uint8_t, 32> LENGTH_COUNTER_TABLE{
+static const std::array<uint8_t, 32> LENGTH_COUNTER_TABLE {
     10, 254, 20, 2, 40, 4, 80, 6, 160, 8, 60, 10, 14, 12, 26, 14,
     12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
+};
+
+
+static const std::array<uint8_t, 32> TRIANGLE_SEQUENCE_TABLE {
+    15, 14, 13, 12, 11, 10,  9,  8,  7,  6,  5,  4,  3,  2,  1,  0,
+    0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15
 };
 
 class APU {
@@ -326,19 +328,35 @@ class APU {
 
         bool mbIsPulse2 = false;
 
-        // Tracking changes in register which chages mCurrentPeriod
-        uint8_t mLastPeriod = 0;
-        bool mbLastSweepEnabled = false;
+        uint8_t mOutputSample = 0;
 
         void ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCounterRegister);
         void ClockEnvelope(uint8_t& EnvelopeRegister);
         void ClockSweep(uint8_t& SweepRegister);
         void ClockLengthCounter(bool bInfinite, uint8_t LengthCounterRegister);
-        uint8_t Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
+        void Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
+    };
+
+    struct TriangleUnit {
+        uint16_t mTimer = 0;
+        uint8_t mLengthCounter = 0;
+        uint8_t mLinearCounter = 0;
+        bool mbLinearCounterReloadFlag = false;
+        uint8_t mSequenceIndex = 0;
+
+        bool mbIsEnabled = false;
+        uint8_t mOutputSample = 0;
+
+        void ClockTimer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister);
+        void ClockLengthCounter(const uint8_t LinearCounterRegister);
+        void ClockLinearCounter(const uint8_t LinearCounterRegister);
+        void ClockSequencer();
     };
 
     PulseUnit mPulse1;
     PulseUnit mPulse2;
+
+    TriangleUnit mTriangle;
 
 public:
     APU();
