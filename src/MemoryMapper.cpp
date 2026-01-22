@@ -32,9 +32,10 @@ MemoryMapper::MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vec
     mController2Shift = 0;
 }
 
-void MemoryMapper::Init(CPU* CPU, PPU* PPU, Renderer* RendererPtr)
+void MemoryMapper::Init(CPU* CPU, APU* APU, PPU* PPU, Renderer* RendererPtr)
 {
     mCPU = CPU;
+    mAPU = APU;
     mPPU = PPU;
     mRenderer = RendererPtr;
 }
@@ -159,6 +160,77 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
             mController1Shift = 0;
             mController2Shift = 0;
         }
+    }
+    else if (TargetAddress >= PULSE1_TIMER_ADDRESS && TargetAddress <= FRAMECOUNTER_ADDRESS)
+    {
+        switch (TargetAddress)
+        {
+            case PULSE1_TIMER_ADDRESS:
+                mAPU->WritePulse1_Timer(Value);
+                break;
+            case PULSE1_LENGTHCOUNTER_ADDRESS:
+                mAPU->WritePulse1_LengthCounter(Value);
+                break;
+            case PULSE1_ENVELOPE_ADDRESS:
+                mAPU->WritePulse1_Envelope(Value);
+                break;
+            case PULSE1_SWEEP_ADDRESS:
+                mAPU->WritePulse1_Sweep(Value);
+                break;
+            case PULSE2_TIMER_ADDRESS:
+                mAPU->WritePulse2_Timer(Value);
+                break;
+            case PULSE2_LENGTHCOUNTER_ADDRESS:
+                mAPU->WritePulse2_LengthCounter(Value);
+                break;
+            case PULSE2_ENVELOPE_ADDRESS:
+                mAPU->WritePulse2_Envelope(Value);
+                break;
+            case PULSE2_SWEEP_ADDRESS:
+                mAPU->WritePulse2_Sweep(Value);
+                break;
+            case TRIANGLE_TIMER_ADDRESS:
+                mAPU->WriteTriangle_Timer(Value);
+                break;
+            case TRIANGLE_LENGTHCOUNTER_ADDRESS:
+                mAPU->WriteTriangle_LengthCounter(Value);
+                break;
+            case TRIANGLE_LINEARCOUNTER_ADDRESS:
+                mAPU->WriteTriangle_LinearCounter(Value);
+                break;
+            case NOISE_TIMER_ADDRESS:
+                mAPU->WriteNoise_Timer(Value);
+                break;
+            case NOISE_LENGTHCOUNTER_ADDRESS:
+                mAPU->WriteNoise_LengthCounter(Value);
+                break;
+            case NOISE_ENVELOPE_ADDRESS:
+                mAPU->WriteNoise_Envelope(Value);
+                break;
+            case NOISE_LINEARFEEDBACKSHIFTREGISTER_ADDRESS:
+                mAPU->WriteNoise_LinearFeedbackShiftRegister(Value);
+                break;
+            case DMC_TIMER_ADDRESS:
+                mAPU->WriteDMC_Timer(Value);
+                break;
+            case DMC_MEMORYREADER_ADDRESS:
+                mAPU->WriteDMC_MemoryReader(Value);
+                break;
+            case DMC_SAMPLEBUFFER_ADDRESS:
+                mAPU->WriteDMC_SampleBuffer(Value);
+                break;
+            case DMC_OUTPUTUNIT_ADDRESS:
+                mAPU->WriteDMC_OutputUnit(Value);
+                break;
+            case STATUS_ADDRESS:
+                mAPU->WriteStatus(Value);
+                break;
+            case FRAMECOUNTER_ADDRESS:
+                mAPU->WriteFrameCounter(Value);
+                break;
+        }
+        return;
+
     }
 
     mMemory[TargetAddress] = Value;

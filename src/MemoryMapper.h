@@ -6,21 +6,23 @@
 #include "OpCodeDecoder.h"
 
 class CPU;
+class APU;
 class PPU;
 class Renderer;
 
 class MemoryMapper {
     std::vector<uint8_t> mMemory;
 
-    uint16_t mPrgRomLocation;
-    uint16_t mChrRomLocation;
+    uint16_t mPrgRomLocation = 0;
+    uint16_t mChrRomLocation = 0;
 
     std::vector<char> mChrRomMemory;
     std::vector<char> mPrgRomMemory;
 
-    CPU* mCPU;
-    PPU* mPPU;
-    Renderer* mRenderer;
+    CPU* mCPU = nullptr;
+    APU* mAPU = nullptr;
+    PPU* mPPU = nullptr;
+    Renderer* mRenderer = nullptr;
 
     uint8_t mController1Shift = 0;
     uint8_t mController2Shift = 0;
@@ -28,7 +30,7 @@ class MemoryMapper {
 public:
     MemoryMapper(const std::vector<char>& ChrRomMemory, const std::vector<char>& PrgRomMemory);
 
-    void Init(CPU* CPU, PPU* PPU, Renderer* RendererPtr);
+    void Init(CPU* CPU, APU* APU, PPU* PPU, Renderer* RendererPtr);
 
     uint32_t MapAddress(uint32_t Address);
 

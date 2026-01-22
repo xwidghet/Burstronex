@@ -27,7 +27,7 @@ void GNES::Run(const std::string& RomPath)
     mAPU->Init(&*mRAM, &*mCPU, ROM.CPUTimingMode);
     mPPU->Init(&*mRAM, &*mRenderer, &ROM);
 
-    mRAM->Init(&*mCPU, &*mPPU, &*mRenderer);
+    mRAM->Init(&*mCPU, &*mAPU, &*mPPU, &*mRenderer);
 
     mRenderer->Init(std::bind(&GNES::RequestShutdown, this));
     std::jthread RenderThread(&Renderer::Tick, &*mRenderer);
@@ -50,7 +50,7 @@ void GNES::Run(const std::string& RomPath)
         WaitCycles += CyclesUsed;
 
         mPPU->Execute(CyclesUsed);
-        //mAPU->Execute(CyclesUsed);
+        mAPU->Execute(CyclesUsed);
 
         if (WaitCycles >= 50)
         {
@@ -59,7 +59,7 @@ void GNES::Run(const std::string& RomPath)
 
             // Dynamic Rate Control of Emulator Speed via Audio buffer.
             float BufferFillSpeed = (0.5f - mAPU->GetBufferFillPercentage()) / 0.5f;
-            //ExecutionTime -= ExecutionTime*BufferFillSpeed;
+            ExecutionTime -= ExecutionTime*BufferFillSpeed;
 
             ClockTimer.WaitUntil(ExecutionTime);
             ClockTimer.Reset();
@@ -83,11 +83,11 @@ void GNES::Run(const std::string& RomPath)
 
         // Debug Remove me later.
         //if (mCPU->GetCycleCount() > 26554)
-          //  break;
+        //    break;
     }
 
     // Headless test rom debug.
-    //mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
+   // mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
    // mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x6004), mRAM->Read8Bit(0x6005));
 }
 

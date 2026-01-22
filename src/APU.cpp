@@ -73,7 +73,6 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
 
 APU::APU()
 {
-    mAudioDevice = std::make_unique<ma_device>();
 }
 
 APU::~APU()
@@ -134,96 +133,15 @@ void APU::InitAudio()
 
     mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Config {0}\n", config.periodSizeInFrames);
 
+    mAudioDevice = std::make_unique<ma_device>();
     ma_result result = ma_device_init(NULL, &config, &*mAudioDevice);
     if (result != MA_SUCCESS) {
         mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::ERROR, "Failed to initialize miniaudio device: {0}\n", static_cast<uint8_t>(result));
     }
 }
 
-void APU::UpdateRegisters()
-{
-    mRegisters.Pulse1_Timer = mRAM->ReadRegister(PULSE1_TIMER_ADDRESS);
-    mRegisters.Pulse1_LengthCounter = mRAM->ReadRegister(PULSE1_LENGTHCOUNTER_ADDRESS);
-    mRegisters.Pulse1_Envelope = mRAM->ReadRegister(PULSE1_ENVELOPE_ADDRESS);
-
-    uint8_t NewSweepData = mRAM->ReadRegister(PULSE1_SWEEP_ADDRESS);
-    if (NewSweepData != mRegisters.Pulse1_Sweep)
-    {
-        mRegisters.Pulse1_Sweep = mRAM->ReadRegister(PULSE1_SWEEP_ADDRESS);
-        uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-        mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
-
-        mPulse1.mSequencerIndex = 0;
-
-        bool bConstantVolume = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
-        if (bConstantVolume)
-        {
-            mPulse1.mEnvelope.mValue = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
-        }
-        else
-        {
-            mPulse1.mEnvelope.mValue = 15;
-        }
-    }
-    
-
-    mRegisters.Pulse2_Timer = mRAM->ReadRegister(PULSE2_TIMER_ADDRESS);
-    mRegisters.Pulse2_LengthCounter = mRAM->ReadRegister(PULSE2_LENGTHCOUNTER_ADDRESS);
-    mRegisters.Pulse2_Envelope = mRAM->ReadRegister(PULSE2_ENVELOPE_ADDRESS);
-
-    NewSweepData = mRAM->ReadRegister(PULSE2_SWEEP_ADDRESS);
-    if (NewSweepData != mRegisters.Pulse2_Sweep)
-    {
-        mRegisters.Pulse2_Sweep = mRAM->ReadRegister(PULSE2_SWEEP_ADDRESS);
-        uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-        mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
-
-        mPulse2.mSequencerIndex = 0;
-
-        bool bConstantVolume = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
-        if (bConstantVolume)
-        {
-            mPulse2.mEnvelope.mValue = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
-        }
-        else
-        {
-            mPulse2.mEnvelope.mValue = 15;
-        }
-    }
-
-    mRegisters.Triangle_Timer = mRAM->ReadRegister(TRIANGLE_TIMER_ADDRESS);
-    mRegisters.Triangle_LengthCounter = mRAM->ReadRegister(TRIANGLE_LENGTHCOUNTER_ADDRESS);
-    mRegisters.Triangle_LinearCounter = mRAM->ReadRegister(TRIANGLE_LINEARCOUNTER_ADDRESS);
-
-    mRegisters.Noise_Timer = mRAM->ReadRegister(NOISE_TIMER_ADDRESS);
-    mRegisters.Noise_LengthCounter = mRAM->ReadRegister(NOISE_LENGTHCOUNTER_ADDRESS);
-    mRegisters.Noise_Envelope = mRAM->ReadRegister(NOISE_ENVELOPE_ADDRESS);
-    mRegisters.Noise_LinearFeedbackShiftRegister = mRAM->ReadRegister(NOISE_LINEARFEEDBACKSHIFTREGISTER_ADDRESS);
-
-    mRegisters.DMC_Timer = mRAM->ReadRegister(DMC_TIMER_ADDRESS);
-    mRegisters.DMC_MemoryReader = mRAM->ReadRegister(DMC_MEMORYREADER_ADDRESS);
-    mRegisters.DMC_SampleBuffer = mRAM->ReadRegister(DMC_SAMPLEBUFFER_ADDRESS);
-    mRegisters.DMC_OutputUnit = mRAM->ReadRegister(DMC_OUTPUTUNIT_ADDRESS);
-
-    auto NewStatus = mRAM->ReadRegister(STATUS_ADDRESS);
-    if (mRegisters.Status != NewStatus)
-    {
-        mRegisters.Status = NewStatus;
-
-        bool bPulse1LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING));
-        bool bPulse2LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING));
-
-        mPulse1.mLengthCounter = bPulse1LCHalt ? 0 : mPulse1.mLengthCounter;
-        mPulse2.mLengthCounter = bPulse2LCHalt ? 0 : mPulse2.mLengthCounter;
-    }
-     
-    mRegisters.FrameCounter = mRAM->ReadRegister(FRAMECOUNTER_ADDRESS);
-}
-
 void APU::Execute(const uint8_t CPUCycles)
 {
-    UpdateRegisters();
-
     mCyclesToRun += CPUCycles;
     mCyclesSinceFrameInterrupt += CPUCycles;
     while(mCyclesToRun > 0)
@@ -264,7 +182,6 @@ void APU::ExecuteSequencer()
         if (Mode == 0 && !bBlockIRQ)
         {
             mRegisters.Status |= static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
-            mRAM->WriteRegister(STATUS_ADDRESS, mRegisters.Status);
             mCPU->SetIRQ(true);
         }
 
@@ -384,6 +301,155 @@ float APU::GetBufferFillPercentage() const
         return 1.f;
 }
 
+void APU::WritePulse1_Timer(const uint8_t Data)
+{
+    mRegisters.Pulse1_Timer = Data;
+}
+
+void APU::WritePulse1_LengthCounter(const uint8_t Data)
+{
+    mRegisters.Pulse1_LengthCounter = Data;
+}
+
+void APU::WritePulse1_Envelope(const uint8_t Data)
+{
+    mRegisters.Pulse1_Envelope = Data;
+}
+
+void APU::WritePulse1_Sweep(const uint8_t Data)
+{
+    mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Sweep data Updated!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+
+    mRegisters.Pulse1_Sweep = Data;
+
+    uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+    mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+
+    mPulse1.mSequencerIndex = 0;
+
+    bool bConstantVolume = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
+    if (bConstantVolume)
+    {
+        mPulse1.mEnvelope.mValue = (mRegisters.Pulse1_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+    }
+    else
+    {
+        mPulse1.mEnvelope.mValue = 15;
+    }
+}
+
+void APU::WritePulse2_Timer(const uint8_t Data)
+{
+    mRegisters.Pulse2_Timer = Data;
+}
+
+void APU::WritePulse2_LengthCounter(const uint8_t Data)
+{
+    mRegisters.Pulse2_LengthCounter = Data;
+}
+
+void APU::WritePulse2_Envelope(const uint8_t Data)
+{
+    mRegisters.Pulse2_Envelope = Data;
+}
+
+void APU::WritePulse2_Sweep(const uint8_t Data)
+{
+    mRegisters.Pulse2_Sweep = Data;
+    uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+    mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+
+    mPulse2.mSequencerIndex = 0;
+
+    bool bConstantVolume = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::CONSTANT_VOLUME)) != 0;
+    if (bConstantVolume)
+    {
+        mPulse2.mEnvelope.mValue = (mRegisters.Pulse2_Timer & static_cast<uint8_t>(EPULSE_TIMER_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+    }
+    else
+    {
+        mPulse2.mEnvelope.mValue = 15;
+    }
+}
+
+void APU::WriteTriangle_Timer(const uint8_t Data)
+{
+    mRegisters.Triangle_Timer = Data;
+}
+
+void APU::WriteTriangle_LengthCounter(const uint8_t Data)
+{
+    mRegisters.Triangle_LengthCounter = Data;
+}
+
+void APU::WriteTriangle_LinearCounter(const uint8_t Data)
+{
+    mRegisters.Triangle_LinearCounter = Data;
+}
+
+void APU::WriteNoise_Timer(const uint8_t Data)
+{
+    mRegisters.Noise_Timer = Data;
+}
+
+void APU::WriteNoise_LengthCounter(const uint8_t Data)
+{
+    mRegisters.Noise_LengthCounter = Data;
+}
+
+void APU::WriteNoise_Envelope(const uint8_t Data)
+{
+    mRegisters.Noise_Envelope = Data;
+}
+
+void APU::WriteNoise_LinearFeedbackShiftRegister(const uint8_t Data)
+{
+    mRegisters.Noise_LinearFeedbackShiftRegister = Data;
+}
+
+void APU::WriteDMC_Timer(const uint8_t Data)
+{
+    mRegisters.DMC_Timer = Data;
+}
+
+void APU::WriteDMC_MemoryReader(const uint8_t Data)
+{
+    mRegisters.DMC_MemoryReader = Data;
+}
+
+void APU::WriteDMC_SampleBuffer(const uint8_t Data)
+{
+    mRegisters.DMC_SampleBuffer = Data;
+}
+
+void APU::WriteDMC_OutputUnit(const uint8_t Data)
+{
+    mRegisters.DMC_OutputUnit = Data;
+}
+
+uint8_t APU::ReadStatus()
+{
+    return mRegisters.Status;
+}
+
+void APU::WriteStatus(const uint8_t Data)
+{
+    mRegisters.Status = Data;
+
+    // Todo: Implement all the other channels
+    bool bPulse1LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING));
+    bool bPulse2LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING));
+
+    mPulse1.mLengthCounter = bPulse1LCHalt ? 0 : mPulse1.mLengthCounter;
+    mPulse2.mLengthCounter = bPulse2LCHalt ? 0 : mPulse2.mLengthCounter;
+}
+
+
+void APU::WriteFrameCounter(const uint8_t Data)
+{
+    mRegisters.FrameCounter = Data;
+}
+
 float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
 {
     float Radian = std::fmod(double(mCPU->GetCycleCount() - CPUCycles + i), mCPU->GetClockFrequency());
@@ -482,9 +548,6 @@ void APU::PulseUnit::ClockSweep(MemoryMapper* RAM, uint8_t& LengthCounterRegiste
 
             LengthCounterRegister &= ~static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH);
             LengthCounterRegister |= (Period >> 8);
-
-            RAM->WriteRegister(PULSE1_LENGTHCOUNTER_ADDRESS, LengthCounterRegister);
-            RAM->WriteRegister(PULSE1_ENVELOPE_ADDRESS, EnvelopeRegister);
         }
     }
 }

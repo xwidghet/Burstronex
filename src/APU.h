@@ -350,10 +350,37 @@ public:
 
     float GetBufferFillPercentage() const;
 
+    void WritePulse1_Timer(const uint8_t Data);
+    void WritePulse1_LengthCounter(const uint8_t Data);
+    void WritePulse1_Envelope(const uint8_t Data);
+    void WritePulse1_Sweep(const uint8_t Data);
+
+    void WritePulse2_Timer(const uint8_t Data);
+    void WritePulse2_LengthCounter(const uint8_t Data);
+    void WritePulse2_Envelope(const uint8_t Data);
+    void WritePulse2_Sweep(const uint8_t Data);
+
+    void WriteTriangle_Timer(const uint8_t Data);
+    void WriteTriangle_LengthCounter(const uint8_t Data);
+    void WriteTriangle_LinearCounter(const uint8_t Data);
+
+    void WriteNoise_Timer(const uint8_t Data);
+    void WriteNoise_LengthCounter(const uint8_t Data);
+    void WriteNoise_Envelope(const uint8_t Data);
+    void WriteNoise_LinearFeedbackShiftRegister(const uint8_t Data);
+
+    void WriteDMC_Timer(const uint8_t Data);
+    void WriteDMC_MemoryReader(const uint8_t Data);
+    void WriteDMC_SampleBuffer(const uint8_t Data);
+    void WriteDMC_OutputUnit(const uint8_t Data);
+
+    uint8_t ReadStatus();
+    void WriteStatus(const uint8_t Data);
+
+    void WriteFrameCounter(const uint8_t Data);
+
 private:
     void InitAudio();
-
-    void UpdateRegisters();
 
     void ExecuteCycle();
 
