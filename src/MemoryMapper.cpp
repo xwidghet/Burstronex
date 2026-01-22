@@ -64,17 +64,22 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
         mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT));
         mCPU->SetIRQ(false);
     }
-    else if (TargetAddress == PPUSTATUS_ADDRESS)
+    else if (TargetAddress >= PPUCTRL_ADDRESS && TargetAddress <= PPUDATA_ADDRESS)
     {
-        Value = mPPU->ReadPPUSTATUS();
-    }
-    else if (TargetAddress == PPUDATA_ADDRESS)
-    {
-        Value = mPPU->ReadPPUData();
-    }
-    else if (TargetAddress == OAMDATA_ADDRESS)
-    {
-        Value = mPPU->ReadOAMDATA();
+        switch (TargetAddress)
+        {
+            case PPUSTATUS_ADDRESS:
+                Value = mPPU->ReadPPUSTATUS();
+                break;
+            case PPUDATA_ADDRESS:
+                Value = mPPU->ReadPPUData();
+                break;
+            case OAMDATA_ADDRESS:
+                Value = mPPU->ReadOAMDATA();
+                break;
+            default:
+                Value = 0;
+        }
     }
     else if (TargetAddress == CONTROLLER_1_READ_ADDRESS)
     {
@@ -111,48 +116,38 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
 
     uint32_t TargetAddress = MapAddress(Address);
 
-    if (TargetAddress == OAMADDR_ADDRESS)
+    if (TargetAddress >= PPUCTRL_ADDRESS && TargetAddress <= PPUDATA_ADDRESS)
     {
-        mPPU->WriteOAMADDR(Value);
-        return;
-    }
-    else if (TargetAddress == OAMDATA_ADDRESS)
-    {
-        mPPU->WriteOAMDATA(Value);
-        return;
-    }
-    else if (TargetAddress == PPUADDR_ADDRESS)
-    {
-        mPPU->WritePPUADDR(Value);
-        return;
-    }
-    else if (TargetAddress == PPUDATA_ADDRESS)
-    {
-        mPPU->WritePPUData(Value);
-        return;
-    }
-    else if (TargetAddress == PPUSCROLL_ADDRESS)
-    {
-        mPPU->ToggleWRegister();
-    }
-    else if (TargetAddress == PPUSTATUS_ADDRESS)
-    {
-        mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "REJECTED CPU WRITTING PPU STATUS!");
-        return;
-    }
-    else if (TargetAddress == PPUCTRL_ADDRESS)
-    {
-        mPPU->WritePPUCTRL(Value);
-        return;
-    }
-    else if (TargetAddress == PPUSCROLL_ADDRESS)
-    {
-        mPPU->WritePPUSCROLL(Value);
-        return;
-    }
-    else if (TargetAddress == PPUMASK_ADDRESS)
-    {
-        mPPU->WritePPUMASK(Value);
+        switch (TargetAddress)
+        {
+            case OAMADDR_ADDRESS:
+                mPPU->WriteOAMADDR(Value);
+                break;
+            case OAMDATA_ADDRESS:
+                mPPU->WriteOAMDATA(Value);
+                break;
+            case PPUADDR_ADDRESS:
+                mPPU->WritePPUADDR(Value);
+                break;
+            case PPUDATA_ADDRESS:
+                mPPU->WritePPUData(Value);
+                break;
+            case PPUSCROLL_ADDRESS:
+                mPPU->WritePPUSCROLL(Value);
+                break;
+            case PPUCTRL_ADDRESS:
+                mPPU->WritePPUCTRL(Value);
+                break;
+            case PPUMASK_ADDRESS:
+                mPPU->WritePPUMASK(Value);
+                break;
+            case PPUSTATUS_ADDRESS:
+                // PPUSTATUS is the one register the CPU can't write.
+                // However supposedly it affects the Open Bus values, so layer I'll need to implement something here.
+                mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "REJECTED CPU WRITTING PPU STATUS!");
+                break;
+        }
+
         return;
     }
     else if (TargetAddress == CONTROLLER_STROBE_ADDRESS)

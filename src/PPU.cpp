@@ -348,6 +348,7 @@ void PPU::WritePPUSCROLL(const uint8_t Data)
 		return;
 
 	mPPUSCROLL = Data;
+	ToggleWRegister();
 }
 
 void PPU::WritePPUMASK(const uint8_t Data)
