@@ -325,13 +325,12 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
     uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
     mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 
-    uint16_t Timer = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    uint16_t Timer = uint16_t(mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Pulse1_Timer;
 
-    mPulse2.mSweep.mTargetPeriod = Timer;
+    mPulse1.mSweep.mTargetPeriod = Timer;
     mPulse1.mSweep.mTargetPeriod += 1;
     mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
-    mPulse1.mSweep.mRegisterPeriod = mPulse1.mSweep.mPeriod;
 
     mPulse1.mSequencerIndex = 0;
     mPulse1.mEnvelope.mbReloadFlag = true;
@@ -359,7 +358,7 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
     mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 
-    uint16_t Timer = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    uint16_t Timer = uint16_t(mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Pulse2_Timer;
 
     mPulse2.mSweep.mTargetPeriod = Timer;
@@ -483,7 +482,7 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     {
         mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
 
-        uint16_t Timer = (LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+        uint16_t Timer = uint16_t((LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH))) << 8;
         Timer |= TimerRegister;
         mSweep.mPeriod = Timer;
     }
