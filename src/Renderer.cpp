@@ -172,16 +172,22 @@ void Renderer::UpdateSharedPPUMemorySSBO()
 void Renderer::UpdateInputs(const bool bController2, const EControllerButtonMasks Button, const uint8_t bPressed)
 {
     uint8_t ButtonMask = static_cast<uint8_t>(Button);
-
+    mLog->Log(ELOGGING_SOURCES::RENDERER, ELOGGING_MODE::INFO, "Renderer: Recieved Button Input {0}, {1}!!\n", ButtonMask, bPressed);
     if (bController2)
     {
-        mController2.fetch_and(~ButtonMask, std::memory_order_relaxed);
-        mController2.fetch_or(ButtonMask & bPressed, std::memory_order_relaxed);
+        uint8_t ControllerState = mController2.load(std::memory_order_acquire);
+        ControllerState &= ~ButtonMask;
+        ControllerState |= ButtonMask * bPressed;
+
+        mController2.store(ControllerState, std::memory_order_release);
     }
     else
     {
-        mController1.fetch_and(~ButtonMask, std::memory_order_relaxed);
-        mController1.fetch_or(ButtonMask & bPressed, std::memory_order_relaxed);
+        uint8_t ControllerState = mController1.load(std::memory_order_acquire);
+        ControllerState &= ~ButtonMask;
+        ControllerState |= ButtonMask * bPressed;
+
+        mController1.store(ControllerState, std::memory_order_release);
     }
 }
 
@@ -193,7 +199,7 @@ void Renderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action
     Renderer* RendererPtr = static_cast<Renderer*>(glfwGetWindowUserPointer(window));
     if (RendererPtr)
     {
-        bool bButtonState = action == GLFW_PRESS;
+        uint8_t ButtonState = action == GLFW_PRESS;
 
         switch(key)
         {
@@ -201,36 +207,36 @@ void Renderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action
                 glfwSetWindowShouldClose(RendererPtr->mWindow, true);
                 break;
             case GLFW_KEY_F1:
-                if (bButtonState)
+                if (ButtonState)
                     RendererPtr->mbShowDebugWindow = !RendererPtr->mbShowDebugWindow;
                 break;
             case GLFW_KEY_LEFT:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::LEFT, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::LEFT, ButtonState);
                 break;
             case GLFW_KEY_RIGHT:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::RIGHT, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::RIGHT, ButtonState);
                 break;
             case GLFW_KEY_UP:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::UP, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::UP, ButtonState);
                 break;
             case GLFW_KEY_DOWN:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::DOWN, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::DOWN, ButtonState);
                 break;
             case GLFW_KEY_ENTER:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::START, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::START, ButtonState);
                 break;
             case GLFW_KEY_Z:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::B, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::B, ButtonState);
                 break;
             case GLFW_KEY_X:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::A, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::A, ButtonState);
                 break;
         }
 
         switch(mods)
         {
             case GLFW_MOD_SHIFT:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::SELECT, bButtonState);
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::SELECT, ButtonState);
                 break;
         }
     }
@@ -322,12 +328,12 @@ void Renderer::DrawPallete()
 
 uint8_t Renderer::GetController1()
 {
-    return mController1.load(std::memory_order_relaxed);
+    return mController1.load(std::memory_order_acquire);
 }
 
 uint8_t Renderer::GetController2()
 {
-    return mController1.load(std::memory_order_relaxed);
+    return mController2.load(std::memory_order_acquire);
 }
 
 void Renderer::CopyPPUMemory(const uint8_t PPUCTRL, const std::array<uint8_t, 16384>& PPUMemory, const std::array<uint8_t, 32>& PalleteMemory, const std::array<uint8_t, 256>& ObjectAttributeMemory)

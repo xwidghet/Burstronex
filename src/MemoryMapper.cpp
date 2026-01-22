@@ -84,8 +84,10 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
             mController1Shift = 8;
             return 1;
         }
-        Value = (mRenderer->GetController1() | (1 << mController1Shift)) != 0;
+        Value = (mRenderer->GetController1() & (1 << mController1Shift)) != 0;
         mController1Shift++;
+
+        mLog->Log(ELOGGING_SOURCES::MEMORY_MAPPER, ELOGGING_MODE::INFO, "Controller 1 Button: {0} {1}\n", mController1Shift-1, Value);
     }
     else if (TargetAddress == CONTROLLER_2_READ_ADDRESS)
     {
@@ -94,7 +96,7 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
             mController2Shift = 8;
             return 1;
         }
-        Value = (mRenderer->GetController2() | (1 << mController2Shift)) != 0;
+        Value = (mRenderer->GetController2() & (1 << mController2Shift)) != 0;
         mController2Shift++;
     }
 
