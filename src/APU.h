@@ -13,14 +13,14 @@ class ma_device;
 static const uint32_t TARGET_SAMPLE_RATE = 48000;
 
 static const uint16_t PULSE1_TIMER_ADDRESS = 0x4000;
-static const uint16_t PULSE1_LENGTHCOUNTER_ADDRESS = 0x4001;
+static const uint16_t PULSE1_SWEEP_ADDRESS = 0x4001;
 static const uint16_t PULSE1_ENVELOPE_ADDRESS = 0x4002;
-static const uint16_t PULSE1_SWEEP_ADDRESS = 0x4003;
+static const uint16_t PULSE1_LENGTHCOUNTER_ADDRESS = 0x4003;
 
 static const uint16_t PULSE2_TIMER_ADDRESS = 0x4004;
-static const uint16_t PULSE2_LENGTHCOUNTER_ADDRESS = 0x4005;
+static const uint16_t PULSE2_SWEEP_ADDRESS = 0x4005;
 static const uint16_t PULSE2_ENVELOPE_ADDRESS = 0x4006;
-static const uint16_t PULSE2_SWEEP_ADDRESS = 0x4007;
+static const uint16_t PULSE2_LENGTHCOUNTER_ADDRESS = 0x4007;
 
 static const uint16_t TRIANGLE_TIMER_ADDRESS = 0x4008;
 
@@ -300,7 +300,7 @@ class APU {
     CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*3> mAudioBuffer;
 
     struct EnvelopeUnit {
-        bool mbStartFlag = false;
+        bool mbReloadFlag = false;
         uint8_t mDivider = 0;
         uint8_t mDecayLevelCounter = 0;
 
