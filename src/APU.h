@@ -314,7 +314,6 @@ class APU {
         uint8_t mLastSweepRegister = 0;
         uint16_t mPeriod = 0;
         uint16_t mTargetPeriod = 0;
-        uint16_t mRegisterPeriod = 0;
     };
 
     struct PulseUnit {

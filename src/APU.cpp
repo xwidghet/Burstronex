@@ -365,7 +365,6 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     mPulse2.mSweep.mTargetPeriod = Timer;
     mPulse2.mSweep.mTargetPeriod += 1;
     mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
-    mPulse2.mSweep.mRegisterPeriod = mPulse2.mSweep.mPeriod;
 
     mPulse2.mSequencerIndex = 0;
 
@@ -480,6 +479,15 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     Value *= mLengthCounter > 0;
 
     // Sequencer Begin
+    if (mSweep.mPeriod == 0)
+    {
+        mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
+
+        uint16_t Timer = (LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+        Timer |= TimerRegister;
+        mSweep.mPeriod = Timer;
+    }
+
     uint8_t Duty = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
     uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (7 - mSequencerIndex))) != 0;
     Value *= SequencerOutput;
@@ -487,12 +495,6 @@ uint8_t APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRe
     if (mSweep.mPeriod > 0)
     {
         mSweep.mPeriod -= 1;
-
-        if (mSweep.mPeriod == 0)
-        {
-            mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
-            mSweep.mPeriod = mSweep.mRegisterPeriod;
-        }
     }
 
     // Target period?
