@@ -12,8 +12,8 @@ Arch Linux and Windows 10 on the x86-64 platform.
 
 **Work in Progress**
 - [x] CPU, Addressing Modes, and a basic Mapper 0 implementation.  
-- [x] Passes all tests in the nestest ROM with the correct cycle count.
-- [x] Plays the audio of a Mapper 0 ROMs.
+- [x] Passes all tests in the nestest ROM with the correct CPU cycle count.
+- [x] Plays the audio of Mapper 0 ROMs.
 - [x] Basic Input (Default Official Controller)
 - [x] Makes it past the title screen of a Mapper 0 ROM.
 - [ ] Basic PPU which can display the graphics of a Mapper 0 ROM.
