@@ -225,18 +225,14 @@ void Renderer::KeyCallback(GLFWwindow* window, int key, int scancode, int action
             case GLFW_KEY_ENTER:
                 RendererPtr->UpdateInputs(false, EControllerButtonMasks::START, ButtonState);
                 break;
+            case GLFW_KEY_RIGHT_SHIFT:
+                RendererPtr->UpdateInputs(false, EControllerButtonMasks::SELECT, ButtonState);
+                break;
             case GLFW_KEY_Z:
                 RendererPtr->UpdateInputs(false, EControllerButtonMasks::B, ButtonState);
                 break;
             case GLFW_KEY_X:
                 RendererPtr->UpdateInputs(false, EControllerButtonMasks::A, ButtonState);
-                break;
-        }
-
-        switch(mods)
-        {
-            case GLFW_MOD_SHIFT:
-                RendererPtr->UpdateInputs(false, EControllerButtonMasks::SELECT, ButtonState);
                 break;
         }
     }
