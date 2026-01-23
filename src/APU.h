@@ -326,11 +326,11 @@ class APU {
 
         uint8_t mOutputSample = 0;
 
-        void ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCounterRegister);
-        void ClockEnvelope(uint8_t& EnvelopeRegister);
-        void ClockSweep(uint8_t& SweepRegister);
+        void ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister);
+        void ClockEnvelope(const uint8_t EnvelopeRegister);
+        void ClockSweep(const uint8_t SweepRegister);
         void ClockLengthCounter(bool bInfinite, uint8_t LengthCounterRegister);
-        void Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister);
+        void Execute(const uint8_t EnvelopeRegister);
     };
 
     struct TriangleUnit {
@@ -360,10 +360,10 @@ class APU {
         bool mbIsEnabled = false;
         uint8_t mOutputSample = 0;
 
-        void ClockTimer(uint8_t& ModePeriodRegister);
-        void ClockEnvelope(uint8_t& EnvelopeRegister);
+        void ClockTimer(const uint8_t ModePeriodRegister);
+        void ClockEnvelope(const uint8_t EnvelopeRegister);
         void ClockLengthCounter(const uint8_t EnvelopeRegister);
-        void ClockSequencer(uint8_t& ModePeriodRegister);
+        void ClockSequencer(const uint8_t ModePeriodRegister);
     };
 
     PulseUnit mPulse1;

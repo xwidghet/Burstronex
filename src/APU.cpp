@@ -172,8 +172,8 @@ void APU::ExecuteCycle()
     mPulse1.ClockSequencer(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter);
     mPulse2.ClockSequencer(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter);
 
-    mPulse1.Execute(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter, mRegisters.Pulse1_Envelope, mRegisters.Pulse1_Sweep);
-    mPulse2.Execute(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter, mRegisters.Pulse2_Envelope, mRegisters.Pulse2_Sweep);
+    mPulse1.Execute(mRegisters.Pulse1_Envelope);
+    mPulse2.Execute(mRegisters.Pulse2_Envelope);
 
     mNoise.ClockTimer(mRegisters.Noise_ModePeriod);
 }
@@ -509,7 +509,7 @@ float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
     return sin(Radian * 6.283185307f * (200 + 25 * cos(6.283185307f * Radian)));
 }
 
-void APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegister, uint8_t& EnvelopeRegister, uint8_t& SweepRegister)
+void APU::PulseUnit::Execute(const uint8_t EnvelopeRegister)
 {
     uint8_t Value = 1;
     Value *= !mSweep.mbIsMutingChannel;
@@ -526,7 +526,7 @@ void APU::PulseUnit::Execute(uint8_t& TimerRegister, uint8_t& LengthCounterRegis
     mOutputSample = Value*mEnvelope.mValue;
 }
 
-void APU::PulseUnit::ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCounterRegister)
+void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister)
 {
     // Sequencer Begin
     if (mSweep.mPeriod == 0)
@@ -544,7 +544,7 @@ void APU::PulseUnit::ClockSequencer(uint8_t& TimerRegister, uint8_t& LengthCount
     }
 }
 
-void APU::PulseUnit::ClockEnvelope(uint8_t& EnvelopeRegister)
+void APU::PulseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
 {
     if (mEnvelope.mbReloadFlag)
     {
@@ -585,7 +585,7 @@ void APU::PulseUnit::ClockEnvelope(uint8_t& EnvelopeRegister)
     }
 }
 
-void APU::PulseUnit::ClockSweep(uint8_t& SweepRegister)
+void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
 {
     // Period always iterates, but only writes back the new value when not muted, is enabled, and shift count is non-zero.
     mSweep.mbIsEnabled = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED);
@@ -703,7 +703,7 @@ void APU::TriangleUnit::ClockSequencer()
     mOutputSample = mbIsEnabled * TRIANGLE_SEQUENCE_TABLE[mSequenceIndex];
 }
 
-void APU::NoiseUnit::ClockTimer(uint8_t& ModePeriodRegister)
+void APU::NoiseUnit::ClockTimer(const uint8_t ModePeriodRegister)
 {
     if (mTimer == 0)
     {
@@ -718,7 +718,7 @@ void APU::NoiseUnit::ClockTimer(uint8_t& ModePeriodRegister)
     }
 }
 
-void APU::NoiseUnit::ClockEnvelope(uint8_t& EnvelopeRegister)
+void APU::NoiseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
 {
     if (mEnvelope.mbReloadFlag)
     {
@@ -771,7 +771,7 @@ void APU::NoiseUnit::ClockLengthCounter(const uint8_t EnvelopeRegister)
     }
 }
 
-void APU::NoiseUnit::ClockSequencer(uint8_t& ModePeriodRegister)
+void APU::NoiseUnit::ClockSequencer(const uint8_t ModePeriodRegister)
 {
     bool bMode = (ModePeriodRegister & static_cast<uint8_t>(ENOISE_MODE_PERIOD_MASKS::NOISE_MODE)) != 0;
     bool bBit0 = mLFSR & 0b1;
