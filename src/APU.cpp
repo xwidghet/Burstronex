@@ -341,8 +341,7 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
     uint16_t Timer = uint16_t(mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Pulse1_Timer;
 
-    mPulse1.mSweep.mTargetPeriod = Timer;
-    mPulse1.mSweep.mTargetPeriod += 1;
+    mPulse1.mSweep.mTargetPeriod = Timer + 1;
     mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
 
     mPulse1.mSequencerIndex = 0;
@@ -374,8 +373,7 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     uint16_t Timer = uint16_t(mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Pulse2_Timer;
 
-    mPulse2.mSweep.mTargetPeriod = Timer;
-    mPulse2.mSweep.mTargetPeriod += 1;
+    mPulse2.mSweep.mTargetPeriod = Timer + 1;
     mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
 
     mPulse2.mSequencerIndex = 0;
@@ -535,7 +533,7 @@ void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t L
 
         uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
         Timer |= TimerRegister;
-        mSweep.mPeriod = Timer;
+        mSweep.mPeriod = Timer + 1;
     }
 
     if (mSweep.mPeriod > 0)
@@ -655,7 +653,7 @@ void APU::TriangleUnit::ClockTimer(const uint8_t TimerRegister, const uint8_t Le
         uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
         Timer |= TimerRegister;
 
-        mTimer = Timer;
+        mTimer = Timer + 1;
     }
     else if (mTimer > 0)
     {
