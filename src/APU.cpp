@@ -593,9 +593,8 @@ void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
     bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
 
     // Pulse1 uses ones compliment
-    int32_t Change = mSweep.mTargetPeriod >> ShiftCount;
-    mSweep.mTargetPeriod = bNegateFlag ? (mSweep.mPeriod + Change + mbIsPulse2) : mSweep.mPeriod - Change;
-    //mSweep.mTargetPeriod = std::max(mSweep.mPeriod  + Change, 0);
+    uint16_t Change = mSweep.mPeriod >> ShiftCount;
+    mSweep.mTargetPeriod = bNegateFlag ? (mSweep.mPeriod + ~Change  + mbIsPulse2) : (mSweep.mPeriod + Change);
 
     mSweep.mbIsMutingChannel = mSweep.mTargetPeriod > 0x7FF ? 1 : 0;
     mSweep.mbIsMutingChannel |= mSweep.mPeriod < 8 ? 1 : 0;
