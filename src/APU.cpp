@@ -344,7 +344,6 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
     mPulse1.mSweep.mTargetPeriod = Timer + 1;
     mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
 
-    mPulse1.mSequencerIndex = 0;
     mPulse1.mEnvelope.mbReloadFlag = true;
     mPulse1.mSweep.mbReloadFlag = true;
 }
@@ -375,8 +374,6 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
 
     mPulse2.mSweep.mTargetPeriod = Timer + 1;
     mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
-
-    mPulse2.mSequencerIndex = 0;
 
     mPulse2.mEnvelope.mbReloadFlag = true;
     mPulse2.mSweep.mbReloadFlag = true;
