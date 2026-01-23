@@ -489,7 +489,9 @@ void APU::WriteFrameCounter(const uint8_t Data)
 {
     mRegisters.FrameCounter = Data;
     mCyclesSinceFrameInterrupt = 0;
-    mSequenceIndex = 0;
+
+    bool bBit7 = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::MODE)) != 0;
+    mSequenceIndex = bBit7 ? 4 : 3;
 }
 
 float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
