@@ -206,13 +206,15 @@ void APU::ExecuteSequencer()
         mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "APU Buffer: {0}%\n", mAudioBuffer.GetPercentageFilled());
     }
 
-    if ((mCyclesSinceFrameInterrupt % mSequenceCycleInterval) == 0)
+    if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)
     {
         if (Mode == 0)
             ExecuteMode0Sequencer();
         else
             ExecuteMode1Sequencer();
     }
+
+    mSequenceCycleCount++;
 }
 
 void APU::ExecuteMode0Sequencer()
@@ -529,11 +531,7 @@ void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t L
     if (mSweep.mPeriod == 0)
     {
         mSequencerIndex = (mSequencerIndex - 1) & 7;
-
-        uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
-        Timer |= TimerRegister;
-        mSweep.mPeriod = Timer + 1;
-        mSweep.mPeriodLength = mSweep.mPeriod;
+        mSweep.mPeriod = mSweep.mPeriodLength;
     }
     else
     {
@@ -590,42 +588,33 @@ void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
     bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
 
     // Pulse1 uses ones compliment
-    uint16_t Change = mSweep.mPeriod >> ShiftCount;
-    mSweep.mTargetPeriod = bNegateFlag ? (mSweep.mPeriod + ~Change  + mbIsPulse2) : (mSweep.mPeriod + Change);
+    uint16_t Change = (mSweep.mPeriodLength >> ShiftCount);
+    mSweep.mTargetPeriod = bNegateFlag ? (mSweep.mPeriodLength + ~Change + mbIsPulse2) : (mSweep.mPeriodLength + Change);
 
     mSweep.mbIsMutingChannel = mSweep.mTargetPeriod > 0x7FF;
     mSweep.mbIsMutingChannel |= mSweep.mPeriodLength < 8;
 
-    if (mSweep.mDivider > 0)
+    if (mSweep.mDivider == 0)
     {
-        mSweep.mDivider -= 1;
-
-        // Does Sweep Divider clock the sweep unit only when it hits zero like the envelope?
-        if (mSweep.mDivider == 0)
+        if (mSweep.mbIsEnabled && ShiftCount > 0)
         {
-
-            if (mSweep.mbIsEnabled && ShiftCount > 0)
+            if (!mSweep.mbIsMutingChannel)
             {
-                if (!mSweep.mbIsMutingChannel)
-                {
-                    mSweep.mPeriod = mSweep.mTargetPeriod;
-                    mSweep.mPeriodLength = mSweep.mPeriod;
-                }
-                else
-                {
-                    mSweep.mDivider = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
-                    mSweep.mDivider += 1;
-                }
+                mSweep.mPeriodLength = mSweep.mTargetPeriod;
             }
         }
     }
 
-    if (mSweep.mbReloadFlag)
+    if (mSweep.mbReloadFlag || mSweep.mDivider == 0)
     {
         mSweep.mbReloadFlag = false;
 
         mSweep.mDivider = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
         mSweep.mDivider += 1;
+    }
+    else
+    {
+        mSweep.mDivider -= 1;
     }
 }
 
