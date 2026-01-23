@@ -14,9 +14,9 @@
 constexpr std::array<float, 31> GenerateSquareTable()
 {
     std::array<float, 31> SquareTable = {};
-    for (int i = 1; i <= 31; i++)
+    for (int i = 1; i < 31; i++)
     {
-        SquareTable[i-1] = 95.52 / (8128.0 / double(i) + 100);
+        SquareTable[i] = 95.52 / (8128.0 / double(i) + 100);
     }
 
     return SquareTable;
@@ -25,9 +25,9 @@ constexpr std::array<float, 31> GenerateSquareTable()
 constexpr std::array<float, 203>  GenerateTND()
 {
     std::array<float, 203> TNDTable = {};
-    for (int i = 1; i <= 203; i++)
+    for (int i = 1; i < 203; i++)
     {
-        TNDTable[i-1] = 163.67 / (24329.0 / double(i) + 100);
+        TNDTable[i] = 163.67 / (24329.0 / double(i) + 100);
     }
 
     return TNDTable;
