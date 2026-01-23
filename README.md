@@ -13,9 +13,9 @@ Arch Linux and Windows 10 on the x86-64 platform.
 **Work in Progress**
 - [x] CPU, Addressing Modes, and a basic Mapper 0 implementation.  
 - [x] Passes all tests in the nestest ROM with the correct cycle count.
-- [ ] Plays the audio of a Mapper 0 ROM's title screen.
-- [ ] Input
-- [ ] Makes it past the title screen of a Mapper 0 ROM.
+- [x] Plays the audio of a Mapper 0 ROMs.
+- [x] Basic Input (Default Official Controller)
+- [x] Makes it past the title screen of a Mapper 0 ROM.
 - [ ] Basic PPU which can display the graphics of a Mapper 0 ROM.
 - [ ] The rest of the owl. (All major Mappers, plays all popular games)
 - [ ] Passes all of the 100coin test rom's tests.
