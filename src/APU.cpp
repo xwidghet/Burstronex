@@ -491,8 +491,10 @@ void APU::WriteFrameCounter(const uint8_t Data)
     mRegisters.FrameCounter = Data;
     mCyclesSinceFrameInterrupt = 0;
 
+    // Last sequence is triggered 2-3 CPU cycles after Frame Counter is written, on the next even cycle.
     bool bBit7 = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::MODE)) != 0;
     mSequenceIndex = bBit7 ? 4 : 3;
+    mSequenceCycleCount = bBit7 ? 0 : mSequenceCycleCount;
 }
 
 float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
