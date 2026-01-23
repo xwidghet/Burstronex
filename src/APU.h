@@ -311,6 +311,7 @@ class APU {
 
         uint8_t mLastSweepRegister = 0;
         uint16_t mPeriod = 0;
+        uint16_t mPeriodLength = 0;
         uint16_t mTargetPeriod = 0;
     };
 

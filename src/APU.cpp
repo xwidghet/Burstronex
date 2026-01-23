@@ -343,6 +343,7 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
 
     mPulse1.mSweep.mTargetPeriod = Timer + 1;
     mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
+    mPulse1.mSweep.mPeriodLength = mPulse1.mSweep.mPeriod;
 
     mPulse1.mEnvelope.mbReloadFlag = true;
     mPulse1.mSweep.mbReloadFlag = true;
@@ -374,6 +375,7 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
 
     mPulse2.mSweep.mTargetPeriod = Timer + 1;
     mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
+    mPulse2.mSweep.mPeriodLength = mPulse2.mSweep.mPeriod;
 
     mPulse2.mEnvelope.mbReloadFlag = true;
     mPulse2.mSweep.mbReloadFlag = true;
@@ -513,29 +515,27 @@ void APU::PulseUnit::Execute(const uint8_t EnvelopeRegister)
     Value *= mLengthCounter > 0;
 
     uint8_t Duty = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
-    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << (7 - mSequencerIndex))) != 0;
+    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << mSequencerIndex)) != 0;
     Value *= SequencerOutput;
 
-    // Target period?
-    Value *= mSweep.mPeriod < 8 ? 0 : 1;
-    // Sequencer End
+    // 12.4Khz frequency limit.
+    Value *= mSweep.mPeriodLength >= 8;
 
     mOutputSample = Value*mEnvelope.mValue;
 }
 
 void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister)
 {
-    // Sequencer Begin
     if (mSweep.mPeriod == 0)
     {
-        mSequencerIndex = mSequencerIndex < 7 ? mSequencerIndex + 1 : 0;
+        mSequencerIndex = (mSequencerIndex - 1) & 7;
 
         uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
         Timer |= TimerRegister;
         mSweep.mPeriod = Timer + 1;
+        mSweep.mPeriodLength = mSweep.mPeriod;
     }
-
-    if (mSweep.mPeriod > 0)
+    else
     {
         mSweep.mPeriod -= 1;
     }
@@ -609,6 +609,7 @@ void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
                 if (!mSweep.mbIsMutingChannel)
                 {
                     mSweep.mPeriod = mSweep.mTargetPeriod;
+                    mSweep.mPeriodLength = mSweep.mPeriod;
                 }
                 else
                 {
