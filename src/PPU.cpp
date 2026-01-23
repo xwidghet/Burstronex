@@ -231,6 +231,17 @@ void PPU::WriteOAMDATA(const uint8_t Data)
 	mOAMADDR++;
 }
 
+void PPU::WriteOAMDMA(const uint8_t Data)
+{
+	// Read Address is always page-aligned, making the low byte 0x00.
+	uint16_t MemoryAddress = uint16_t(Data) << 8;
+	uint8_t* RawMemoryAddress = mRAM->GetMemoryPtr(MemoryAddress);
+
+	// TODO: CPU is paused while write happens, which takes ~512-513 cycles. So there may be cases where APU/PPU are supposed to be doing other work in this time.
+	std::memcpy(mObjectAttributeMemory.data(), RawMemoryAddress, mObjectAttributeMemory.size());
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU OAM DMA! {0:X}\n", MemoryAddress);
+}
+
 void PPU::WritePPUADDR(const uint8_t Data)
 {
 	if (mClockCount < REGISTER_IGNORE_CYCLES)

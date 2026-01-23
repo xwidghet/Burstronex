@@ -117,7 +117,9 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
 
     uint32_t TargetAddress = MapAddress(Address);
 
-    if (TargetAddress >= PPUCTRL_ADDRESS && TargetAddress <= PPUDATA_ADDRESS)
+    // OAMDMA not being in the PPU address range makes me sad :(
+    // In the optimization phase I'll want to implement real memory mapping somehow to replace all of this.
+    if (TargetAddress == OAMDMA_ADDRESS || (TargetAddress >= PPUCTRL_ADDRESS && TargetAddress <= PPUDATA_ADDRESS))
     {
         switch (TargetAddress)
         {
@@ -126,6 +128,9 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
                 break;
             case OAMDATA_ADDRESS:
                 mPPU->WriteOAMDATA(Value);
+                break;
+            case OAMDMA_ADDRESS:
+                mPPU->WriteOAMDMA(Value);
                 break;
             case PPUADDR_ADDRESS:
                 mPPU->WritePPUADDR(Value);
@@ -271,6 +276,12 @@ void MemoryMapper::WriteRegister(const uint32_t Address, uint8_t Value)
     mMemory[MapAddress(Address)] = Value;
 }
 
+uint8_t* MemoryMapper::GetMemoryPtr(uint16_t TargetAddress)
+{
+    uint16_t Address = MapAddress(TargetAddress);
+
+    return &mMemory[Address];
+}
 
 const uint16_t MemoryMapper::GetPrgRomLocation() const
 {

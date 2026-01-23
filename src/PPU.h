@@ -13,6 +13,7 @@ static const uint16_t PPUMASK_ADDRESS = 0x2001;
 static const uint16_t PPUSTATUS_ADDRESS = 0x2002;
 static const uint16_t OAMADDR_ADDRESS = 0x2003;
 static const uint16_t OAMDATA_ADDRESS = 0x2004;
+static const uint16_t OAMDMA_ADDRESS = 0x4014;
 static const uint16_t PPUSCROLL_ADDRESS = 0x2005;
 static const uint16_t PPUADDR_ADDRESS = 0x2006;
 
@@ -411,6 +412,8 @@ public:
 	void WriteOAMADDR(const uint8_t Data);
 
 	void WriteOAMDATA(const uint8_t Data);
+
+	void WriteOAMDMA(const uint8_t Data);
 
 	void WritePPUADDR(const uint8_t Data);
 

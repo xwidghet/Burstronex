@@ -48,6 +48,9 @@ public:
     // Used for APU/PPU to avoid read/write side-effects, since the memory is supposed to be mapped to them.
     void WriteRegister(const uint32_t Address, uint8_t Value);
 
+    // Used for PPU OAMDMA
+    uint8_t* GetMemoryPtr(uint16_t TargetAddress);
+
     const uint16_t GetPrgRomLocation() const;
 
     const uint16_t GetChrRomLocation() const;
