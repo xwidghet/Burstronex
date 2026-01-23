@@ -166,7 +166,7 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
             mController2Shift = 0;
         }
     }
-    else if (TargetAddress >= PULSE1_TIMER_ADDRESS && TargetAddress <= FRAMECOUNTER_ADDRESS)
+    else if (TargetAddress >= PULSE1_ENVELOPE_ADDRESS && TargetAddress <= FRAMECOUNTER_ADDRESS)
     {
         switch (TargetAddress)
         {

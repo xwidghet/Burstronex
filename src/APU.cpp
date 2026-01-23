@@ -472,8 +472,8 @@ void APU::WriteStatus(const uint8_t Data)
     mRegisters.Status = Data;
 
     // Todo: Implement all the other channels
-    bool bPulse1LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING));
-    bool bPulse2LCHalt = !(mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING));
+    bool bPulse1LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING)) == 0;
+    bool bPulse2LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING)) == 0;
     bool bTrianglePlaying = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING));
 
     mPulse1.mLengthCounter = bPulse1LCHalt ? 0 : mPulse1.mLengthCounter;
