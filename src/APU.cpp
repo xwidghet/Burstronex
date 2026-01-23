@@ -269,7 +269,7 @@ void APU::HalfFrame()
     bool bPulse1Infinite = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP));
     bool bPulse2Infinite = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP));
     mPulse1.ClockLengthCounter(bPulse1Infinite, mRegisters.Pulse1_LengthCounter);
-    mPulse2.ClockLengthCounter(bPulse2Infinite, mRegisters.Pulse1_LengthCounter);
+    mPulse2.ClockLengthCounter(bPulse2Infinite, mRegisters.Pulse2_LengthCounter);
 
     mPulse1.ClockSweep(mRegisters.Pulse1_Sweep);
     mPulse2.ClockSweep(mRegisters.Pulse2_Sweep);
