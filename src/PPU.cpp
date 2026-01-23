@@ -163,7 +163,10 @@ void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 {
 	// Hack until Sprite 0 hit is implemented, where the PPU checks if an opaque pixel of a sprite overlaps an opaque pixel of a background.
 	// Which I imagine I can basically copy paste from my shader.
-	mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+	if (bIsRenderingEnabled)
+	{
+		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+	}
 }
 
 bool PPU::ReadNMIOutput()
@@ -195,11 +198,7 @@ void PPU::WritePPUCTRL(const uint8_t Data)
 
 uint8_t PPU::ReadPPUSTATUS()
 {
-	//uint8_t Value = mPPUSTATUS;
-
-	// Hack while Sprite 0 hit is not implemented.
-	//Value |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
-	//Value |= mbIsVBlank ? static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG) : 0;
+	uint8_t Value = mPPUSTATUS;
 
 	//if (mPPUSTATUS != 0x40)
 		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::VERBOSE, "CPU Read Status with VBlank! {0:X}\n", mPPUSTATUS);
@@ -208,7 +207,7 @@ uint8_t PPU::ReadPPUSTATUS()
 	mbIsVBlank = false;
 	ClearWRegister();
 
-	return mPPUSTATUS;
+	return Value;
 }
 
 uint8_t PPU::ReadOAMDATA()
