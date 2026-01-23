@@ -297,7 +297,6 @@ class APU {
     struct EnvelopeUnit {
         bool mbReloadFlag = false;
         uint8_t mDivider = 0;
-        uint8_t mDecayLevelCounter = 0;
 
         uint8_t mValue = 15;
     };
@@ -309,7 +308,6 @@ class APU {
         uint8_t mDivider = 0;
         bool mbReloadFlag = false;
 
-        uint8_t mLastSweepRegister = 0;
         uint16_t mPeriod = 0;
         uint16_t mPeriodLength = 0;
         uint16_t mTargetPeriod = 0;
@@ -318,9 +316,7 @@ class APU {
     struct PulseUnit {
         EnvelopeUnit mEnvelope;
         SweepUnit mSweep;
-        uint8_t mSequencer = 0;
         uint8_t mSequencerIndex = 0;
-
         uint8_t mLengthCounter = 0;
 
         bool mbIsPulse2 = false;
