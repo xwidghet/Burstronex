@@ -324,6 +324,12 @@ void APU::WritePulse1_Timer(const uint8_t Data)
 void APU::WritePulse1_LengthCounter(const uint8_t Data)
 {
     mRegisters.Pulse1_LengthCounter = Data;
+
+    uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+    mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+
+    mPulse1.mSequencerIndex = 0;
+    mPulse1.mEnvelope.mbReloadFlag = true;
 }
 
 void APU::WritePulse1_Envelope(const uint8_t Data)
@@ -337,9 +343,6 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
 
     mRegisters.Pulse1_Sweep = Data;
 
-    uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-    mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
-
     uint16_t Timer = uint16_t(mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Pulse1_Timer;
 
@@ -347,7 +350,6 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
     mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
     mPulse1.mSweep.mPeriodLength = mPulse1.mSweep.mPeriod;
 
-    mPulse1.mEnvelope.mbReloadFlag = true;
     mPulse1.mSweep.mbReloadFlag = true;
 }
 
@@ -359,6 +361,12 @@ void APU::WritePulse2_Timer(const uint8_t Data)
 void APU::WritePulse2_LengthCounter(const uint8_t Data)
 {
     mRegisters.Pulse2_LengthCounter = Data;
+
+    uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+    mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+
+    mPulse2.mSequencerIndex = 0;
+    mPulse2.mEnvelope.mbReloadFlag = true;
 }
 
 void APU::WritePulse2_Envelope(const uint8_t Data)
@@ -369,8 +377,6 @@ void APU::WritePulse2_Envelope(const uint8_t Data)
 void APU::WritePulse2_Sweep(const uint8_t Data)
 {
     mRegisters.Pulse2_Sweep = Data;
-    uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-    mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 
     uint16_t Timer = uint16_t(mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Pulse2_Timer;
@@ -379,7 +385,6 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
     mPulse2.mSweep.mPeriodLength = mPulse2.mSweep.mPeriod;
 
-    mPulse2.mEnvelope.mbReloadFlag = true;
     mPulse2.mSweep.mbReloadFlag = true;
 }
 
