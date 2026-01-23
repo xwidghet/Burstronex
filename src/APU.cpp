@@ -268,10 +268,10 @@ void APU::ExecuteMode1Sequencer()
 
 void APU::HalfFrame()
 {
-    bool bPulse1Infinite = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP));
-    bool bPulse2Infinite = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP));
-    mPulse1.ClockLengthCounter(bPulse1Infinite, mRegisters.Pulse1_LengthCounter);
-    mPulse2.ClockLengthCounter(bPulse2Infinite, mRegisters.Pulse2_LengthCounter);
+    bool bPulse1Infinite = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    bool bPulse2Infinite = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse1.ClockLengthCounter(bPulse1Infinite);
+    mPulse2.ClockLengthCounter(bPulse2Infinite);
 
     mPulse1.ClockSweep(mRegisters.Pulse1_Sweep);
     mPulse2.ClockSweep(mRegisters.Pulse2_Sweep);
@@ -549,7 +549,7 @@ void APU::PulseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
 
         mEnvelope.mValue = 15;
 
-        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
         mEnvelope.mDivider += 1;
     }
     else
@@ -566,7 +566,7 @@ void APU::PulseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
                 mEnvelope.mValue -= 1;
             }
 
-            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
             mEnvelope.mDivider += 1;
         }
         else
@@ -578,14 +578,14 @@ void APU::PulseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
     bool bConstantVolume = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
     if (bConstantVolume)
     {
-        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
     }
 }
 
 void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
 {
     // Period always iterates, but only writes back the new value when not muted, is enabled, and shift count is non-zero.
-    mSweep.mbIsEnabled = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED);
+    mSweep.mbIsEnabled = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
     uint8_t ShiftCount = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
     bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
 
@@ -620,7 +620,7 @@ void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
     }
 }
 
-void APU::PulseUnit::ClockLengthCounter(bool bInfinite, uint8_t LengthCounter)
+void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
 {
     // Infinite doesn't modify it at all, so if it's at 0 it stays at zero.
     if (bInfinite)
@@ -714,7 +714,7 @@ void APU::NoiseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
 
         mEnvelope.mValue = 15;
 
-        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
         mEnvelope.mDivider += 1;
     }
     else
@@ -731,7 +731,7 @@ void APU::NoiseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
                 mEnvelope.mValue -= 1;
             }
 
-            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
             mEnvelope.mDivider += 1;
         }
         else
@@ -743,7 +743,7 @@ void APU::NoiseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
     bool bConstantVolume = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
     if (bConstantVolume)
     {
-        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE)) & 0b1111;
+        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
     }
 }
 
