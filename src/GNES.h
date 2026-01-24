@@ -6,6 +6,7 @@
 #include "PPU.h"
 #include "CPU.h"
 #include "Renderer.h"
+#include "StatisticsManager.h"
 
 #include <memory>
 #include <string>
@@ -20,10 +21,14 @@ class GNES {
     std::unique_ptr<Renderer> mRenderer = nullptr;
 
     bool mbIsRunning = true;
-    float mEmulatorSpeed = 0.f;
+    bool mbThrottle = true;
+
+    EmulationStatistics mEmulationStatistics;
 
 public:
     void Run(const std::string& RomPath);
 
     void RequestShutdown();
+
+    void ToggleThrottle();
 };

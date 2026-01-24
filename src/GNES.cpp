@@ -3,6 +3,7 @@
 #include "Logger.h"
 #include "RomLoader.h"
 #include "RomParameters.h"
+#include "StatisticsManager.h"
 #include "Timer.h"
 
 #include <thread>
@@ -29,13 +30,17 @@ void GNES::Run(const std::string& RomPath)
 
     mRAM->Init(&*mCPU, &*mAPU, &*mPPU, &*mRenderer);
 
-    mRenderer->Init(std::bind(&GNES::RequestShutdown, this));
+    mStatisticsManager = std::make_unique<StatisticsManager>();
+
+    auto ShutdownFunction = std::bind(&GNES::RequestShutdown, this);
+    auto ThrottleFunction = std::bind(&GNES::ToggleThrottle, this);
+    mRenderer->Init(ShutdownFunction, ThrottleFunction);
+
     std::jthread RenderThread(&Renderer::Tick, &*mRenderer);
 
     Timer ClockTimer;
 
     Timer EmulatorSpeedTimer;
-    mEmulatorSpeed = 1.f;
 
     int64_t LastCPUCycles = mCPU->GetCycleCount();
     uint8_t WaitCycles = mCPU->GetCycleCount();
@@ -52,7 +57,7 @@ void GNES::Run(const std::string& RomPath)
         mPPU->Execute(CyclesUsed);
         mAPU->Execute(CyclesUsed);
 
-        if (WaitCycles >= 50)
+        if (mbThrottle && WaitCycles >= 50)
         {
             auto ExecutionTime = mCPU->GetCycleTime() * WaitCycles;
             WaitCycles = 0;
@@ -73,9 +78,9 @@ void GNES::Run(const std::string& RomPath)
             //
             // So let's account for that and normalize the time for a more sane Emulator Speed statistic.
             auto Overshoot = (CyclesSinceLastSecond - mCPU->GetClockFrequency()) / mCPU->GetClockFrequency();
+            mEmulationStatistics.mEmulationSpeed = (1.0 / EmulatorSpeedTimer.GetDeltaTime()) - Overshoot;
 
-            mEmulatorSpeed = (1.0 / EmulatorSpeedTimer.GetDeltaTime()) - Overshoot;
-            mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "Emulator Speed: {0:.8f}\n", mEmulatorSpeed);
+            mStatisticsManager->UpdateEmulationStatistics(mEmulationStatistics);
 
             LastCPUCycles = mCPU->GetCycleCount();
             EmulatorSpeedTimer.Reset();
@@ -94,4 +99,9 @@ void GNES::Run(const std::string& RomPath)
 void GNES::RequestShutdown()
 {
     mbIsRunning = false;
+}
+
+void GNES::ToggleThrottle()
+{
+    mbThrottle = !mbThrottle;
 }

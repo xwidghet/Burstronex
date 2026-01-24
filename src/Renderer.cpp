@@ -2,6 +2,7 @@
 
 #include "Input.h"
 #include "Logger.h"
+#include "StatisticsManager.h"
 
 #include "../thirdparty/glfw/include/GLFW/glfw3.h"
 
@@ -10,6 +11,7 @@
 #include "../thirdparty/imgui/backends/imgui_impl_opengl3.h"
 
 #include <atomic>
+#include <format>
 #include <fstream>
 
 Renderer::Renderer()
@@ -26,9 +28,10 @@ Renderer::~Renderer()
     }
 }
 
-void Renderer::Init(std::function<void()> ShutdownFunction)
+void Renderer::Init(std::function<void()> ShutdownFunction, std::function<void()> ThrottleFunction)
 {
     mShutdownFunction = std::move(ShutdownFunction);
+    mThrottleFunction = std::move(ThrottleFunction);
 }
 
 void Renderer::Tick()
@@ -262,7 +265,13 @@ void Renderer::RenderDebug()
     if (mbShowDebugWindow)
     {
         ImGui::Begin("Debug", &mbShowDebugWindow);
-        ImGui::Text("Test Post Please Ignore");
+
+        auto Stats = mStatisticsManager->GetStatistics();
+
+        ImGui::Text(std::format("APU Buffer: {0:.0f}%\n", Stats.mAPUStatistics.mBufferFillPercentage*100.f).c_str());
+        ImGui::Text(std::format("Emulation Speed: {0:.2f}%\n", Stats.mEmulationStatistics.mEmulationSpeed).c_str());
+
+        ImGui::SeparatorText("Debug");
 
         if (ImGui::Button("Display Pallete"))
         {
@@ -275,11 +284,15 @@ void Renderer::RenderDebug()
             mPalleteShader->Reload();
         }
 
+        if (ImGui::Button("Toggle Throttling"))
+        {
+            mThrottleFunction();
+        }
+
         if (ImGui::Button("Verbose Logging"))
         {
             mLog->SetLogMode(ELOGGING_MODE::VERBOSE);
         }
-
 
         ImGui::End();
     }

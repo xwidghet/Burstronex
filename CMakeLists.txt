@@ -20,7 +20,8 @@ target_sources(GNES
         src/RomLoader.cpp
         src/Timer.cpp
         src/Renderer.cpp
-		src/Shader.cpp)
+		src/Shader.cpp
+		src/StatisticsManager.cpp)
 
 target_include_directories(GNES PRIVATE include)
 target_include_directories(GNES PRIVATE thirdparty/imgui)

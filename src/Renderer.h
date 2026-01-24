@@ -16,6 +16,7 @@ enum class EControllerButtonMasks;
 class Renderer {
     GLFWwindow* mWindow = nullptr;
     std::function<void()> mShutdownFunction;
+    std::function<void()> mThrottleFunction;
 
     bool mbShowDebugWindow = true;
     bool mbShowPallete = false;
@@ -48,7 +49,7 @@ public:
     ~Renderer();
 
     // Not Thread Safe, should only be used prior to starting the thread.
-    void Init(std::function<void()> ShutdownFunction);
+    void Init(std::function<void()> ShutdownFunction, std::function<void()> ThrottleFunction);
 
     // Not Thread Safe, should only be used to start the thread.
     void Tick();

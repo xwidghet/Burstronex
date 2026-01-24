@@ -5,6 +5,7 @@
 #include "Logger.h"
 #include "MemoryMapper.h"
 #include "RomParameters.h"
+#include "StatisticsManager.h"
 
 #include "miniaudio.c"
 
@@ -203,7 +204,8 @@ void APU::ExecuteSequencer()
             mbStartedDevice = true;
         }
 
-        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "APU Buffer: {0}%\n", mAudioBuffer.GetPercentageFilled());
+        mAPUStatistics.mBufferFillPercentage = mAudioBuffer.GetPercentageFilled();
+        mStatisticsManager->UpdateAPUStatistics(mAPUStatistics);
     }
 
     if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CircularBuffer.h"
+#include "StatisticsManager.h"
+
 #include <cstdint>
 #include <memory>
 
@@ -293,6 +295,8 @@ class APU {
 
     // Circular buffer of two audio frames. Ideally it stays roughly 1 frame full.
     CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*3> mAudioBuffer;
+
+    APUStatistics mAPUStatistics;
 
     struct EnvelopeUnit {
         bool mbReloadFlag = false;
