@@ -105,6 +105,10 @@ void main()
 	const int NameCellX = int(QuadCoordinate.x * 32.0);
 	const int NameCellY = int(QuadCoordinate.y * 32.0);
 
+	// Cells < 1 and 30+ are in the vblank area.
+	if (NameCellY < 1 || NameCellY > 29)
+		discard;
+
 	const int CellData = mPPUMemory[NameTableAddress + NameCellX + NameCellY*32];
 
 	int TileCorner = BackgroundPatternTableAddress + CellData*16;
