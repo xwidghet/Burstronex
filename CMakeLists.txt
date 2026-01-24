@@ -27,6 +27,8 @@ target_include_directories(GNES PRIVATE thirdparty/imgui)
 
 target_compile_features(GNES PRIVATE cxx_std_20)
 
+set_target_properties(GNES PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+
 if(NOT WIN32)
     find_package(Threads REQUIRED)
     target_link_libraries(GNES PRIVATE Threads::Threads m)
