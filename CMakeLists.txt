@@ -54,7 +54,10 @@ target_link_libraries(GNES PRIVATE glfw)
 set(IMGUI_PATH  "thirdparty/imgui")
 
 file(GLOB IMGUI_SOURCES
-    ${IMGUI_PATH}/*.cpp
+    ${IMGUI_PATH}/imgui.cpp
+    ${IMGUI_PATH}/imgui_widgets.cpp
+    ${IMGUI_PATH}/imgui_tables.cpp
+    ${IMGUI_PATH}/imgui_draw.cpp
     ${IMGUI_PATH}/backends/imgui_impl_glfw.cpp
     ${IMGUI_PATH}/backends/imgui_impl_opengl3.cpp
     ${IMGUI_PATH}/backends/imgui_impl_opengl3_loader.cpp)
