@@ -316,8 +316,8 @@ void Renderer::ApplyIntegerScaling(GLFWwindow* Window, int Width, int Height)
     // While I'm here, might as well do aspect ratio correction to ensure pixels are square.
     GLsizei ScalerTarget = Height <= Width ? Height : Width;
 
-    // Todo: The output has some non-square pixels, so there's an issue here or in the shader (Pallete).
-    GLsizei TargetScaleRatio = ScalerTarget / 262;
+    // Todo: The output has some non-square pixels, so there's an issue here or in the shader.
+    GLsizei TargetScaleRatio = std::max(ScalerTarget / 262, 1);
 
     GLsizei TargetHeight = 262*TargetScaleRatio;
     GLsizei TargetWidth = 262*TargetScaleRatio;
