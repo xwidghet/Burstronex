@@ -329,6 +329,7 @@ class APU {
 
         void ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister);
         void ClockEnvelope(const uint8_t EnvelopeRegister);
+        void ClockHalfFrameSweep(const uint8_t SweepRegister);
         void ClockSweep(const uint8_t SweepRegister);
         void ClockLengthCounter(bool bInfinite);
         void Execute(const uint8_t EnvelopeRegister);
