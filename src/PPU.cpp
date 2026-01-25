@@ -85,23 +85,9 @@ void PPU::Execute(const uint8_t CPUCycles)
 
 void PPU::ExecuteCycle()
 {
-	if (mClockCount == REGISTER_IGNORE_CYCLES)
-		mbNMIOutputFlag = true;
-
 	// Should take effect 4 dots or more after write, otherwise a crash may occur.
 	bool bIsRenderingEnabled = (mPPUMASK & PPUMASK_RENDERING_MASK) != 0;
-
 	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
-
-	/*
-	mbOldNMIState = mbNMIState;
-	mbNMIState = bShouldTriggerNMI;
-	if (mbNMIState && mbOldNMIState == false && mbIsVBlank)
-	{
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Triggered NMI!\n");
-		// When does this go false?
-		mbNMIOutputFlag = true;
-	}*/
 
 	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
 	{
