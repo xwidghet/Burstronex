@@ -225,6 +225,9 @@ void CPU::ExecuteInstruction(NESOpCode* OpCode)
         case EINSTRUCTION::SEI:
             SEI();
             break;
+        case EINSTRUCTION::CLI:
+            CLI();
+            break;
         case EINSTRUCTION::SED:
             SED();
             break;
