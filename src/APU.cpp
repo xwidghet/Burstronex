@@ -85,7 +85,7 @@ void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
     mRAM = MemoryMapper;
     mCPU = CPU;
 
-    mCyclesToRun = 0;
+    mbCycleToggle = false;
     mCyclesSinceFrameInterrupt = 0;
     mSequenceCycleCount = 0;
     mSequenceIndex = 0;
@@ -145,26 +145,24 @@ void APU::InitAudio()
 
 void APU::Execute(const uint8_t CPUCycles)
 {
-    mCyclesToRun += CPUCycles;
-    mCyclesSinceFrameInterrupt += CPUCycles;
-    while(mCyclesToRun > 0)
-    {
-        ExecuteCycle();
-        ExecuteSequencer();
-
-        // APU operates at half the speed of the CPU.
-        mCyclesToRun -= 2;
-    }
-
-    // Every CPU Cycle the APU outputs one sample
     for (int i = 0; i < CPUCycles; i++)
     {
+        if (mbCycleToggle)
+        {
+            ExecuteCycle();
+            ExecuteSequencer();
+        }
+        mbCycleToggle = !mbCycleToggle;
+
+        // Every CPU Cycle the APU outputs one sample,
+        // and the Triangle unit clocks on every CPU Cycle
         mTriangle.ClockTimer(mRegisters.Triangle_Timer, mRegisters.Triangle_LengthCounter);
 
         //float NewSample = TestOutput(CPUCycles, i);
         float NewSample = DACOutput()*2.f - 1.f;
 
         mAudioBuffer.Push(NewSample);
+        mCyclesSinceFrameInterrupt++;
     }
 }
 

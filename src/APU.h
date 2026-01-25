@@ -279,7 +279,7 @@ class APU {
     // Ex.
     //      Leftovers: 7 + 7 = 14, 14 / 2 = 7 APU cycles
     //      Dividing: 7/2 = 3, 3 * 2 = 6 APU cycles, missing one cycle after running two 7 cycle instructions.
-    int32_t mCyclesToRun = 0;
+    bool mbCycleToggle = false;
 
     uint32_t mCyclesSinceFrameInterrupt = 0;
     uint32_t mFrameInterruptCycleCount = 0;
