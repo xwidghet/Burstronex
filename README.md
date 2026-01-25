@@ -16,7 +16,11 @@ Arch Linux and Windows 10 on the x86-64 platform.
 - [x] Plays the audio of Mapper 0 ROMs.
 - [x] Basic Input (Default Official Controller)
 - [x] Makes it past the title screen of a Mapper 0 ROM.
-- [ ] Basic PPU which can display the graphics of a Mapper 0 ROM.
-- [ ] Can complete a full playthrough of a Mapper 0 ROM.
+- [x] Basic PPU which can display the graphics of a Mapper 0 ROM.
+- [x] Can complete a full playthrough of a Mapper 0 ROM.
+- [ ] Horizontal and Vertical PPU Scrolling support.
 - [ ] The rest of the owl. (All major Mappers, plays all popular games)
-- [ ] Passes all of the 100coin test ROM's tests.
+- [ ] Passes all of the tests in 100th Coin's AccuracyCoin ROM.
+
+**Special Thanks**  
+This project was inspired by 100th Coin's videos on emulator accuracy.
