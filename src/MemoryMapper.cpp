@@ -62,8 +62,7 @@ uint8_t MemoryMapper::Read8Bit(const uint32_t Address)
 
     if (TargetAddress == STATUS_ADDRESS)
     {
-        mMemory[TargetAddress] = Value & (~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT));
-        mCPU->SetIRQ(false);
+        return mAPU->ReadStatus();
     }
     else if (TargetAddress >= PPUCTRL_ADDRESS && TargetAddress <= PPUDATA_ADDRESS)
     {

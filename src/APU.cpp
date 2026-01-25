@@ -331,8 +331,12 @@ void APU::WritePulse1_LengthCounter(const uint8_t Data)
 {
     mRegisters.Pulse1_LengthCounter = Data;
 
-    uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-    mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    bool bPulse1LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING)) == 0;
+    if (!bPulse1LCHalt)
+    {
+        uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    }
 
     mPulse1.mSequencerIndex = 0;
     mPulse1.mEnvelope.mbReloadFlag = true;
@@ -377,8 +381,12 @@ void APU::WritePulse2_LengthCounter(const uint8_t Data)
 {
     mRegisters.Pulse2_LengthCounter = Data;
 
-    uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-    mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    bool bPulse2LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING)) == 0;
+    if (!bPulse2LCHalt)
+    {
+        uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    }
 
     mPulse2.mSequencerIndex = 0;
     mPulse2.mEnvelope.mbReloadFlag = true;
@@ -422,15 +430,20 @@ void APU::WriteTriangle_Timer(const uint8_t Data)
 void APU::WriteTriangle_LengthCounter(const uint8_t Data)
 {
     mRegisters.Triangle_LengthCounter = Data;
-    mTriangle.mbLinearCounterReloadFlag = true;
+
+    bool bTriangleLCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING)) == 0;
+    if (!bTriangleLCHalt)
+    {
+        uint8_t LengthCounterIndex = (mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        mTriangle.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    }
 
     uint16_t Timer = uint16_t(mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
     Timer |= mRegisters.Triangle_Timer + 1;
 
     mTriangle.mTimer = Timer;
+    mTriangle.mbLinearCounterReloadFlag = true;
 
-    uint8_t LengthCounterIndex = (mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-    mTriangle.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
 }
 
 void APU::WriteNoise_Envelope(const uint8_t Data)
@@ -447,8 +460,12 @@ void APU::WriteNoise_LengthCounter(const uint8_t Data)
 {
     mRegisters.Noise_LengthCounter = Data;
 
-    uint8_t LengthCounterIndex = (mRegisters.Noise_LengthCounter & static_cast<uint8_t>(ENOISE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-    mNoise.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    bool bNoiseLCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::NOISE_PLAYING)) == 0;
+    if (!bNoiseLCHalt)
+    {
+        uint8_t LengthCounterIndex = (mRegisters.Noise_LengthCounter & static_cast<uint8_t>(ENOISE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        mNoise.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    }
 
     mNoise.mEnvelope.mbReloadFlag = true;
 }
@@ -475,16 +492,12 @@ void APU::WriteDMC_OutputUnit(const uint8_t Data)
 
 uint8_t APU::ReadStatus()
 {
-    uint8_t Output = mRegisters.Status;
+    uint8_t Output = 0;
 
-    if (mPulse1.mLengthCounter == 0)
-        Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING);
-    if (mPulse2.mLengthCounter == 0)
-        Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING);
-    if (mTriangle.mLengthCounter == 0)
-        Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING);
-    if (mNoise.mLengthCounter == 0)
-        Output &= ~static_cast<uint8_t>(ESTATUS_WRITE_MASKS::NOISE_PLAYING);
+    Output |= mPulse1.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING) : 0;
+    Output |= mPulse2.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING) : 0;
+    Output |= mTriangle.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING) : 0;
+    Output |= mNoise.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::NOISE_PLAYING) : 0;
 
     // Clears Frame Interrupt flag but not DMC Interrupt flag
     mRegisters.Status &= ~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
