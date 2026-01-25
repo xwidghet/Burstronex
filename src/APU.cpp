@@ -322,6 +322,9 @@ float APU::GetBufferFillPercentage() const
 void APU::WritePulse1_Timer(const uint8_t Data)
 {
     mRegisters.Pulse1_Timer = Data;
+
+    mPulse1.mSweep.mPeriodLength &= 0xFF00;
+    mPulse1.mSweep.mPeriodLength |=  mRegisters.Pulse1_Timer;
 }
 
 void APU::WritePulse1_LengthCounter(const uint8_t Data)
@@ -333,6 +336,10 @@ void APU::WritePulse1_LengthCounter(const uint8_t Data)
 
     mPulse1.mSequencerIndex = 0;
     mPulse1.mEnvelope.mbReloadFlag = true;
+
+    int16_t TimerHigh = uint16_t(mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    mPulse1.mSweep.mPeriodLength &= 0x00FF;
+    mPulse1.mSweep.mPeriodLength |= TimerHigh;
 }
 
 void APU::WritePulse1_Envelope(const uint8_t Data)
@@ -361,6 +368,9 @@ void APU::WritePulse1_Sweep(const uint8_t Data)
 void APU::WritePulse2_Timer(const uint8_t Data)
 {
     mRegisters.Pulse2_Timer = Data;
+
+    mPulse2.mSweep.mPeriodLength &= 0xFF00;
+    mPulse2.mSweep.mPeriodLength |=  mRegisters.Pulse2_Timer;
 }
 
 void APU::WritePulse2_LengthCounter(const uint8_t Data)
@@ -372,6 +382,10 @@ void APU::WritePulse2_LengthCounter(const uint8_t Data)
 
     mPulse2.mSequencerIndex = 0;
     mPulse2.mEnvelope.mbReloadFlag = true;
+
+    int16_t TimerHigh = uint16_t(mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    mPulse2.mSweep.mPeriodLength &= 0x00FF;
+    mPulse2.mSweep.mPeriodLength |= TimerHigh;
 }
 
 void APU::WritePulse2_Envelope(const uint8_t Data)
