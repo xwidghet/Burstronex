@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 4.2.1)
-project (GNESProject C CXX)
+project (BurstronexProject C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the build type (Release, Debug, RelWithDebInfo, MinSizeRel)." FORCE)
 endif()
 
-add_executable(GNES)
+add_executable(Burstronex)
 
-target_sources(GNES
+target_sources(Burstronex
     PRIVATE
         src/main.cpp
-        src/GNES.cpp
+        src/Burstronex.cpp
         src/APU.cpp
         src/CPU.cpp
         src/PPU.cpp
@@ -23,28 +23,28 @@ target_sources(GNES
 		src/Shader.cpp
 		src/StatisticsManager.cpp)
 
-target_include_directories(GNES PRIVATE include)
-target_include_directories(GNES PRIVATE thirdparty/imgui)
+target_include_directories(Burstronex PRIVATE include)
+target_include_directories(Burstronex PRIVATE thirdparty/imgui)
 
-target_compile_features(GNES PRIVATE cxx_std_20)
+target_compile_features(Burstronex PRIVATE cxx_std_20)
 
-set_target_properties(GNES PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+set_target_properties(Burstronex PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 if(NOT WIN32)
     find_package(Threads REQUIRED)
-    target_link_libraries(GNES PRIVATE Threads::Threads m)
+    target_link_libraries(Burstronex PRIVATE Threads::Threads m)
 
 find_package(OpenGL REQUIRED)
-target_link_libraries(GNES PUBLIC OpenGL::OpenGL)
+target_link_libraries(Burstronex PUBLIC OpenGL::OpenGL)
 endif()
 
 if(WIN32)
-	target_link_libraries(GNES PUBLIC OpenGL32.lib)
+	target_link_libraries(Burstronex PUBLIC OpenGL32.lib)
 endif()
 
 add_library(glad STATIC src/glad.c)
 target_include_directories(glad PUBLIC include)
-target_link_libraries(GNES PUBLIC glad)
+target_link_libraries(Burstronex PUBLIC glad)
 
 add_subdirectory(thirdparty/glfw)
 
@@ -52,7 +52,7 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
-target_link_libraries(GNES PRIVATE glfw)
+target_link_libraries(Burstronex PRIVATE glfw)
 
 set(IMGUI_PATH  "thirdparty/imgui")
 
@@ -70,4 +70,4 @@ target_include_directories(ImGui PRIVATE ${IMGUI_PATH})
 target_include_directories(ImGui PRIVATE ${IMGUI_PATH}/backends)
 target_include_directories(ImGui PRIVATE thirdparty/glfw/include)
 
-target_link_libraries(GNES PRIVATE ImGui)
+target_link_libraries(Burstronex PRIVATE ImGui)

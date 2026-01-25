@@ -1,4 +1,4 @@
-#include "GNES.h"
+#include "Burstronex.h"
 
 #include <string>
 
@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
         RomPath = std::string(argv[1]);
     }
 
-    GNES Emulator;
+    Burstronex Emulator;
     Emulator.Run(RomPath);
 
 }

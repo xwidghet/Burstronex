@@ -47,7 +47,7 @@ void Renderer::Tick()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    mWindow = glfwCreateWindow(1440, 1080, "GNES", NULL, NULL);
+    mWindow = glfwCreateWindow(1440, 1080, "Burstronex", NULL, NULL);
     if (mWindow == nullptr)
     {
         mLog->Log(ELOGGING_SOURCES::RENDERER, ELOGGING_MODE::ERROR, "Failed to create window\n");
@@ -98,7 +98,7 @@ void Renderer::Tick()
 
     glfwTerminate();
 
-    // Notify GNES that we're done.
+    // Notify Burstronex that we're done.
     mShutdownFunction();
 }
 

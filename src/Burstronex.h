@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 
-class GNES {
+class Burstronex {
     std::unique_ptr<APU> mAPU = nullptr;
     std::unique_ptr<CPU> mCPU = nullptr;
     std::unique_ptr<PPU> mPPU = nullptr;

@@ -127,8 +127,8 @@ void APU::InitAudio()
     config.noClip = true;
 
     // On Linux with Pipewire thorugh alsa backend, it seems shared mode only partially works:
-    // If GNES starts first: Behavior is of exclusive mode, other applications can't play audio.
-    // If GNES starts second: Other applications behave normally, but GNES only outputs corrupted audio with cuts.
+    // If Burstronex starts first: Behavior is of exclusive mode, other applications can't play audio.
+    // If Burstronex starts second: Other applications behave normally, but Burstronex only outputs corrupted audio with cuts.
     config.playback.shareMode = ma_share_mode_shared;
     config.resampling.sampleRateIn = config.sampleRate;
     config.resampling.sampleRateOut = TARGET_SAMPLE_RATE;

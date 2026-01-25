@@ -1,4 +1,4 @@
-#include "GNES.h"
+#include "Burstronex.h"
 
 #include "Logger.h"
 #include "RomLoader.h"
@@ -8,7 +8,7 @@
 
 #include <thread>
 
-void GNES::Run(const std::string& RomPath)
+void Burstronex::Run(const std::string& RomPath)
 {
     mLog = std::make_unique<Logger>();
 
@@ -32,8 +32,8 @@ void GNES::Run(const std::string& RomPath)
 
     mStatisticsManager = std::make_unique<StatisticsManager>();
 
-    auto ShutdownFunction = std::bind(&GNES::RequestShutdown, this);
-    auto ThrottleFunction = std::bind(&GNES::ToggleThrottle, this);
+    auto ShutdownFunction = std::bind(&Burstronex::RequestShutdown, this);
+    auto ThrottleFunction = std::bind(&Burstronex::ToggleThrottle, this);
     mRenderer->Init(ShutdownFunction, ThrottleFunction);
 
     std::jthread RenderThread(&Renderer::Tick, &*mRenderer);
@@ -92,16 +92,16 @@ void GNES::Run(const std::string& RomPath)
     }
 
     // Headless test rom debug.
-   // mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
-   // mLog->Log(ELOGGING_SOURCES::GNES, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x6004), mRAM->Read8Bit(0x6005));
+   // mLog->Log(ELOGGING_SOURCES::Burstronex, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x02), mRAM->Read8Bit(0x03));
+   // mLog->Log(ELOGGING_SOURCES::Burstronex, ELOGGING_MODE::INFO, "0x02: {0}, 0x03: {1}\n", mRAM->Read8Bit(0x6004), mRAM->Read8Bit(0x6005));
 }
 
-void GNES::RequestShutdown()
+void Burstronex::RequestShutdown()
 {
     mbIsRunning = false;
 }
 
-void GNES::ToggleThrottle()
+void Burstronex::ToggleThrottle()
 {
     mbThrottle = !mbThrottle;
 }

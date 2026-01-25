@@ -19,7 +19,7 @@ enum class ELOGGING_SOURCES {
     PPU = 1 << 2,
     MEMORY_MAPPER = 1 << 3,
     ROM_LOADER = 1 << 4,
-    GNES = 1 << 5,
+    Burstronex = 1 << 5,
     RENDERER = 1 << 6,
     ALL = 0xFFFF
 };

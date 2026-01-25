@@ -1,5 +1,5 @@
-**GNES**  
-GNES is a cross-platform NES Emulator made to gain a greater understanding of how Emulators and the NES work. There are future plans for unique ideas to build upon this emulator, but accuracy and playability is the current focus to gain a strong foundation.  
+**Burstronex**  
+Burstronex is a cross-platform NES Emulator made to gain a greater understanding of how Emulators and the NES work. There are future plans for unique ideas to build upon this emulator, but accuracy and playability is the current focus to gain a strong foundation.  
 
 **NES Hardware Documentation Sources**  
 The links below are the main sources of information about the NES that were used to implement this NES Emulator.  
