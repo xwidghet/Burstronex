@@ -142,7 +142,7 @@ uint8_t CPU::ExecuteNextInstruction()
     mRegisters.PC++;
 
     // Allow OpCode to be modified in the case that cycle count is varies. Ex. Branches, memory reads out of pages, etc.
-    auto OpCode = OpCodeDecoder::DecodeOpCode(PCData);
+    auto OpCode = OpCodeDecoder::GetDecodedOpCode(PCData);
 
     mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "{0:04X} {1}   Registers: A:{2:02X}, X:{3:02X}, Y:{4:02X}, S:{5:02X}, P:{6:02X},   PCDATA:{7:02X}, Cycles: {8}, PPU: {9}\n", mRegisters.PC-1, OpCode.Name,
               mRegisters.A, mRegisters.X, mRegisters.Y, mRegisters.S, mRegisters.P, PCData, mCycleCount, mPPU->GetCycleCount());
@@ -155,8 +155,6 @@ uint8_t CPU::ExecuteNextInstruction()
 
 void CPU::ExecuteInstruction(NESOpCode* OpCode)
 {
-    uint8_t OperandsBytes = 0;
-
     switch (OpCode->Instruction)
     {
         case EINSTRUCTION::ASL:
