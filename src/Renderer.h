@@ -4,6 +4,7 @@
 
 #include "../include/glad/glad.h"
 
+#include <array>
 #include <atomic>
 #include <functional>
 #include <memory>

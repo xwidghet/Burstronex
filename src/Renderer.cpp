@@ -135,7 +135,7 @@ void Renderer::CompileShaders()
     // TODO: fix this at some point...
     std::string ShaderFolderPath = "../shaders/";
 #ifdef _WIN64
-    ShaderFolderPath = "../../shaders/"
+    ShaderFolderPath = "../../shaders/";
 #endif
 
     mQuadShader = std::make_unique<Shader>(ShaderFolderPath + "Quad.vert", ShaderFolderPath + "Quad.frag");
