@@ -1,8 +1,6 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <string>
 
 enum class EAddressingMode
 {
@@ -47,14 +45,13 @@ enum class EINSTRUCTION
 };
 
 struct NESOpCode {
-  std::string Name;
+  const char* Name;
   EINSTRUCTION Instruction;
   EAddressingMode AddressMode;
   uint8_t OperandByteCount;
   uint8_t Cycles;
 };
 
-class OpCodeDecoder {
-public:
-    static NESOpCode DecodeOpCode(const uint8_t PCData);
+namespace OpCodeDecoder {
+    NESOpCode GetDecodedOpCode(const uint8_t PCData);
 };

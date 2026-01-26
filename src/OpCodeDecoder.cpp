@@ -1,12 +1,12 @@
 #include "OpCodeDecoder.h"
 
-#include "Logger.h"
+#include <array>
 
 // How many braces could a wood chuck chuck if a wood chuck could chuck wood.
 // Cycle counts are the constant cost, branches add one cycle, crossing memory pages adds one cycle.
 // Sizes are Instruction + Operands,
 // Ex. Immediate 1 Instruction + 1 Operand, Absolute Indexed 1 instruction + 2 operand.
-std::array<NESOpCode, 256> OpCodeTable =
+static constexpr std::array<NESOpCode, 256> OpCodeTable =
 {{
     // 00
         // Red Block
@@ -331,7 +331,7 @@ std::array<NESOpCode, 256> OpCodeTable =
         {  "ISC", EINSTRUCTION::ISC, EAddressingMode::XAbsoluteIndexed, 3, 6}
 }};
 
-NESOpCode OpCodeDecoder::DecodeOpCode(const uint8_t PCData)
+static constexpr NESOpCode DecodeOpCode(const uint8_t PCData)
 {
     const uint8_t AAA = (PCData >> 5) & (0b111);
     const uint8_t BBB = (PCData >> 2) & (0b111);
@@ -344,7 +344,23 @@ NESOpCode OpCodeDecoder::DecodeOpCode(const uint8_t PCData)
     Y += ((CC & 0b10) != 0) * 16;
     Y += BBB;
 
-    mLog->Log(ELOGGING_SOURCES::CPU, ELOGGING_MODE::VERBOSE, "Op Code Index: [{0}[{1}]]\n", X, Y);
-
     return OpCodeTable[X*32 + Y];
+}
+
+static constexpr std::array<NESOpCode, 256>  GenerateDecodedOpCodeTable()
+{
+    std::array<NESOpCode, 256> DecodedOpCodeTable{};
+    for (int i = 0; i < 256; i++)
+    {
+        DecodedOpCodeTable[i] = DecodeOpCode(i);
+    }
+
+    return DecodedOpCodeTable;
+}
+
+static constexpr std::array<NESOpCode, 256> DECODED_OPCODE_TABLE = GenerateDecodedOpCodeTable();
+
+NESOpCode OpCodeDecoder::GetDecodedOpCode(const uint8_t PCData)
+{
+    return DECODED_OPCODE_TABLE[PCData];
 }
