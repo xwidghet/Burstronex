@@ -90,6 +90,15 @@ void Renderer::Tick()
         RenderDebug();
 
         glfwSwapBuffers(mWindow);
+
+        // Reduce display latency by preventing rendering from being pipelined, reducing latency by 1 frame.
+        // Important: If this is before SwapBuffers, there is no effect on latency.
+        // Measured results on Linux with Wayland and a 120hz display:
+        //      Default:    85 MS
+        //      glFinish(): 77 MS
+        //
+        // TODO: Synchronization with emulator and decoupling of input sampling from rendering to further reduce latency.
+        glFinish();
     }
 
     ImGui_ImplOpenGL3_Shutdown();
