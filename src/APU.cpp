@@ -286,13 +286,11 @@ void APU::HalfFrame()
 
 void APU::QuarterFrame()
 {
-    // Clock Envelopes and Triangle linear counter.
-    mPulse1.ClockEnvelope(mRegisters.Pulse1_Envelope);
-    mPulse2.ClockEnvelope(mRegisters.Pulse2_Envelope);
+    mPulse1.mEnvelope.Clock();
+    mPulse2.mEnvelope.Clock();
+    mNoise.mEnvelope.Clock();
 
     mTriangle.ClockLinearCounter(mRegisters.Triangle_LinearCounter);
-
-    mNoise.ClockEnvelope(mRegisters.Noise_Envelope);
 }
 
 float APU::DACOutput()
@@ -349,6 +347,10 @@ void APU::WritePulse1_LengthCounter(const uint8_t Data)
 void APU::WritePulse1_Envelope(const uint8_t Data)
 {
     mRegisters.Pulse1_Envelope = Data;
+
+    mPulse1.mEnvelope.mbIsLooping = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse1.mEnvelope.mbIsConstantVolume = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
+    mPulse1.mEnvelope.mConstantVolume_Envelope = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
 }
 
 void APU::WritePulse1_Sweep(const uint8_t Data)
@@ -399,6 +401,10 @@ void APU::WritePulse2_LengthCounter(const uint8_t Data)
 void APU::WritePulse2_Envelope(const uint8_t Data)
 {
     mRegisters.Pulse2_Envelope = Data;
+
+    mPulse2.mEnvelope.mbIsLooping = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse2.mEnvelope.mbIsConstantVolume = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
+    mPulse2.mEnvelope.mConstantVolume_Envelope = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
 }
 
 void APU::WritePulse2_Sweep(const uint8_t Data)
@@ -449,6 +455,10 @@ void APU::WriteTriangle_LengthCounter(const uint8_t Data)
 void APU::WriteNoise_Envelope(const uint8_t Data)
 {
     mRegisters.Noise_Envelope = Data;
+
+    mNoise.mEnvelope.mbIsLooping = (mRegisters.Noise_Envelope & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
+    mNoise.mEnvelope.mbIsConstantVolume = (mRegisters.Noise_Envelope & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
+    mNoise.mEnvelope.mConstantVolume_Envelope = (mRegisters.Noise_Envelope & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
 }
 
 void APU::WriteNoise_ModePeriod(const uint8_t Data)
@@ -551,6 +561,45 @@ float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
     return sin(Radian * 6.283185307f * (200 + 25 * cos(6.283185307f * Radian)));
 }
 
+void APU::EnvelopeUnit::Clock()
+{
+    if (mbReloadFlag)
+    {
+        mbReloadFlag = false;
+
+        mValue = 15;
+
+        mDivider = mConstantVolume_Envelope;
+        mDivider += 1;
+    }
+    else
+    {
+        if (mDivider == 0)
+        {
+            if (mbIsLooping && mValue == 0)
+            {
+                mValue = 15;
+            }
+            else if (mValue > 0)
+            {
+                mValue -= 1;
+            }
+
+            mDivider = mConstantVolume_Envelope;
+            mDivider += 1;
+        }
+        else
+        {
+            mDivider -= 1;
+        }
+    }
+}
+
+uint8_t APU::EnvelopeUnit::GetVolume() const
+{
+    return mbIsConstantVolume ? mConstantVolume_Envelope : mValue;
+}
+
 void APU::PulseUnit::Execute(const uint8_t EnvelopeRegister)
 {
     uint8_t Value = 1;
@@ -564,7 +613,7 @@ void APU::PulseUnit::Execute(const uint8_t EnvelopeRegister)
     // 12.4Khz frequency limit.
     Value *= mSweep.mPeriodLength >= 8;
 
-    mOutputSample = Value*mEnvelope.mValue;
+    mOutputSample = Value*mEnvelope.GetVolume();
 }
 
 void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister)
@@ -577,47 +626,6 @@ void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t L
     else
     {
         mSweep.mPeriod -= 1;
-    }
-}
-
-void APU::PulseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
-{
-    if (mEnvelope.mbReloadFlag)
-    {
-        mEnvelope.mbReloadFlag = false;
-
-        mEnvelope.mValue = 15;
-
-        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
-        mEnvelope.mDivider += 1;
-    }
-    else
-    {
-        if (mEnvelope.mDivider == 0)
-        {
-            bool bLoop = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
-            if (bLoop && mEnvelope.mValue == 0)
-            {
-                mEnvelope.mValue = 15;
-            }
-            else if (mEnvelope.mValue > 0)
-            {
-                mEnvelope.mValue -= 1;
-            }
-
-            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
-            mEnvelope.mDivider += 1;
-        }
-        else
-        {
-            mEnvelope.mDivider -= 1;
-        }
-    }
-
-    bool bConstantVolume = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
-    if (bConstantVolume)
-    {
-        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
     }
 }
 
@@ -749,47 +757,6 @@ void APU::NoiseUnit::ClockTimer(const uint8_t ModePeriodRegister)
     }
 }
 
-void APU::NoiseUnit::ClockEnvelope(const uint8_t EnvelopeRegister)
-{
-    if (mEnvelope.mbReloadFlag)
-    {
-        mEnvelope.mbReloadFlag = false;
-
-        mEnvelope.mValue = 15;
-
-        mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
-        mEnvelope.mDivider += 1;
-    }
-    else
-    {
-        if (mEnvelope.mDivider == 0)
-        {
-            bool bLoop = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
-            if (bLoop && mEnvelope.mValue == 0)
-            {
-                mEnvelope.mValue = 15;
-            }
-            else if (mEnvelope.mValue > 0)
-            {
-                mEnvelope.mValue -= 1;
-            }
-
-            mEnvelope.mDivider = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
-            mEnvelope.mDivider += 1;
-        }
-        else
-        {
-            mEnvelope.mDivider -= 1;
-        }
-    }
-
-    bool bConstantVolume = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
-    if (bConstantVolume)
-    {
-        mEnvelope.mValue = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
-    }
-}
-
 void APU::NoiseUnit::ClockLengthCounter(const uint8_t EnvelopeRegister)
 {
     bool bHalt = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
@@ -815,5 +782,5 @@ void APU::NoiseUnit::ClockSequencer(const uint8_t ModePeriodRegister)
     bBit0 = mLFSR & 0b1;
 
     bool bOutputValue = !bBit0 && mLengthCounter > 0;
-    mOutputSample = bOutputValue ? mEnvelope.mValue : 0;
+    mOutputSample = bOutputValue ? mEnvelope.GetVolume() : 0;
 }

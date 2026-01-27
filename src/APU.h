@@ -300,9 +300,15 @@ class APU {
 
     struct EnvelopeUnit {
         bool mbReloadFlag = false;
-        uint8_t mDivider = 0;
+        bool mbIsLooping = false;
+        bool mbIsConstantVolume = false;
 
+        uint8_t mDivider = 0;
         uint8_t mValue = 15;
+        uint8_t mConstantVolume_Envelope = 0;
+
+        void Clock();
+        uint8_t GetVolume() const;
     };
 
     struct SweepUnit {
@@ -328,7 +334,6 @@ class APU {
         uint8_t mOutputSample = 0;
 
         void ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister);
-        void ClockEnvelope(const uint8_t EnvelopeRegister);
         void ClockHalfFrameSweep(const uint8_t SweepRegister);
         void ClockSweep(const uint8_t SweepRegister);
         void ClockLengthCounter(bool bInfinite);
@@ -363,7 +368,6 @@ class APU {
         uint8_t mOutputSample = 0;
 
         void ClockTimer(const uint8_t ModePeriodRegister);
-        void ClockEnvelope(const uint8_t EnvelopeRegister);
         void ClockLengthCounter(const uint8_t EnvelopeRegister);
         void ClockSequencer(const uint8_t ModePeriodRegister);
     };
