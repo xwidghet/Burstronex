@@ -274,6 +274,8 @@ class APU {
         uint8_t FrameCounter;
     } mRegisters;
 
+    uint8_t mMode = 0;
+
     // Simple solution for tracking leftover cycles from running at half the speed of the CPU.
     // I wouldn't need to do this if the CPU ran one cycle at a time, since I could just % 2 the cycle count, but I don't do that currently.
     // Ex.
@@ -283,20 +285,19 @@ class APU {
 
     uint32_t mCyclesSinceFrameInterrupt = 0;
     uint32_t mFrameInterruptCycleCount = 0;
+
+    // Cycles until the Frame Counter is reset to zero from the Frame Counter register being written.
+    uint32_t mFrameResetCycles = 0;
     uint32_t mSequenceCycleCount = 0;
     uint32_t mSequenceCycleInterval = 0;
 
     uint64_t mAudioFrameCount = 0;
-
-    uint8_t mSequenceIndex = 0;
 
     std::unique_ptr<ma_device> mAudioDevice;
     bool mbStartedDevice = false;
 
     // Circular buffer of two audio frames. Ideally it stays roughly 1 frame full.
     CircularBuffer<float, NTSC_FRAME_INTERRUPT_CYCLE_COUNT*3> mAudioBuffer;
-
-    APUStatistics mAPUStatistics;
 
     struct EnvelopeUnit {
         bool mbReloadFlag = false;
@@ -431,6 +432,8 @@ private:
     void HalfFrame();
 
     void QuarterFrame();
+
+    void TriggerFrameInterrupt();
 
     float DACOutput();
 

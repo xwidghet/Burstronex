@@ -23,6 +23,7 @@ class Burstronex {
     bool mbIsRunning = true;
     bool mbThrottle = true;
 
+    APUStatistics mAPUStatistics;
     EmulationStatistics mEmulationStatistics;
 
 public:

@@ -82,6 +82,10 @@ void Burstronex::Run(const std::string& RomPath)
 
             mStatisticsManager->UpdateEmulationStatistics(mEmulationStatistics);
 
+            // Previously this was updated in the Frame Interrupt, but games using the APU's Mode 1 tend to rarely trigger this.
+            mAPUStatistics.mBufferFillPercentage = mAPU->GetBufferFillPercentage();
+            mStatisticsManager->UpdateAPUStatistics(mAPUStatistics);
+
             LastCPUCycles = mCPU->GetCycleCount();
             EmulatorSpeedTimer.Reset();
         }

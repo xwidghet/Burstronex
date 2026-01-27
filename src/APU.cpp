@@ -85,10 +85,11 @@ void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
     mRAM = MemoryMapper;
     mCPU = CPU;
 
+    mMode = 0;
     mbCycleToggle = false;
     mCyclesSinceFrameInterrupt = 0;
+    mFrameInterruptCycleCount = 0;
     mSequenceCycleCount = 0;
-    mSequenceIndex = 0;
 
     if (Timing == ECPU_TIMING::PAL)
     {
@@ -147,6 +148,16 @@ void APU::Execute(const uint8_t CPUCycles)
 {
     for (int i = 0; i < CPUCycles; i++)
     {
+        // Frame Counter Register write side-effect
+        if (mFrameResetCycles > 0)
+        {
+            mFrameResetCycles -= 1;
+            if (mFrameResetCycles == 0)
+            {
+                mSequenceCycleCount = 0;
+            }
+        }
+
         if (mbCycleToggle)
         {
             ExecuteCycle();
@@ -182,91 +193,82 @@ void APU::ExecuteCycle()
 
 void APU::ExecuteSequencer()
 {
-    bool Mode = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::MODE)) != 0;
-
-    if (mCyclesSinceFrameInterrupt >= mFrameInterruptCycleCount)
-    {
-        mCyclesSinceFrameInterrupt = 0;
-        mAudioFrameCount++;
-
-        bool bBlockIRQ = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::IRQ_INHIBIT)) != 0;
-
-        if (Mode == 0 && !bBlockIRQ)
-        {
-            mRegisters.Status |= static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
-            mCPU->SetIRQ(true);
-        }
-
-        // Start audio device once we have one audio frame of data generated.
-        if (!mbStartedDevice)
-        {
-            mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Started Audio Device\n");
-            ma_device_start(&*mAudioDevice);
-            mbStartedDevice = true;
-        }
-
-        mAPUStatistics.mBufferFillPercentage = mAudioBuffer.GetPercentageFilled();
-        mStatisticsManager->UpdateAPUStatistics(mAPUStatistics);
-    }
-
-    if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)
-    {
-        if (Mode == 0)
-            ExecuteMode0Sequencer();
-        else
-            ExecuteMode1Sequencer();
-    }
-
-    mSequenceCycleCount++;
+    if (mMode == 0)
+        ExecuteMode0Sequencer();
+    else
+        ExecuteMode1Sequencer();
 }
 
 void APU::ExecuteMode0Sequencer()
 {
-    switch (mSequenceIndex)
+    if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)
     {
-    case 0:
-        QuarterFrame();
-        break;
-    case 1:
-        HalfFrame();
-        QuarterFrame();
-        break;
-    case 2:
-        QuarterFrame();
-        break;
-    case 3:
-        HalfFrame();
-        QuarterFrame();
-        break;
+        switch (mSequenceCycleCount / mSequenceCycleInterval)
+        {
+            case 0:
+                break;
+            case 1:
+                QuarterFrame();
+                break;
+            case 2:
+                HalfFrame();
+                QuarterFrame();
+                break;
+            case 3:
+                QuarterFrame();
+                break;
+            case 4:
+                HalfFrame();
+                QuarterFrame();
+                TriggerFrameInterrupt();
+                break;
+        }
     }
 
-    mSequenceIndex = (mSequenceIndex + 1) % 4;
+    if (mSequenceCycleCount == (mSequenceCycleInterval * 4))
+    {
+        mSequenceCycleCount = 0;
+    }
+    else
+    {
+        mSequenceCycleCount++;
+    }
 }
 
 void APU::ExecuteMode1Sequencer()
 {
-    switch (mSequenceIndex)
+    if ((mSequenceCycleCount % mSequenceCycleInterval) == 0)
     {
-        case 0:
-            QuarterFrame();
-            break;
-        case 1:
-            HalfFrame();
-            QuarterFrame();
-            break;
-        case 2:
-            QuarterFrame();
-            break;
-        case 3:
-            // Nothing Happens (TM?)
-            break;
-        case 4:
-            HalfFrame();
-            QuarterFrame();
-            break;
+        switch (mSequenceCycleCount / mSequenceCycleInterval)
+        {
+            case 0:
+                HalfFrame();
+                QuarterFrame();
+                break;
+            case 1:
+                QuarterFrame();
+                break;
+            case 2:
+                HalfFrame();
+                QuarterFrame();
+                break;
+            case 3:
+                QuarterFrame();
+                break;
+            case 4:
+                // Nothing Happens (TM?)
+                break;
+        }
     }
 
-    mSequenceIndex = (mSequenceIndex + 1) % 5;
+    if (mSequenceCycleCount == (mSequenceCycleInterval * 5))
+    {
+        mSequenceCycleCount = 0;
+    }
+    else
+    {
+        mSequenceCycleCount++;
+    }
 }
 
 void APU::HalfFrame()
@@ -291,6 +293,28 @@ void APU::QuarterFrame()
     mNoise.mEnvelope.Clock();
 
     mTriangle.ClockLinearCounter(mRegisters.Triangle_LinearCounter);
+}
+
+void APU::TriggerFrameInterrupt()
+{
+    mCyclesSinceFrameInterrupt = 0;
+    mAudioFrameCount++;
+
+    bool bBlockIRQ = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::IRQ_INHIBIT)) != 0;
+
+    if (mMode == 0 && !bBlockIRQ)
+    {
+        mRegisters.Status |= static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
+        mCPU->SetIRQ(true);
+    }
+
+    // Start audio device once we have one audio frame of data generated.
+    if (!mbStartedDevice)
+    {
+        mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Started Audio Device\n");
+        ma_device_start(&*mAudioDevice);
+        mbStartedDevice = true;
+    }
 }
 
 float APU::DACOutput()
@@ -538,12 +562,10 @@ void APU::WriteStatus(const uint8_t Data)
 void APU::WriteFrameCounter(const uint8_t Data)
 {
     mRegisters.FrameCounter = Data;
-    mCyclesSinceFrameInterrupt = 0;
+    mMode = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::MODE)) != 0;
 
     // Last sequence is triggered 2-3 CPU cycles after Frame Counter is written, on the next even cycle.
-    bool bBit7 = (mRegisters.FrameCounter & static_cast<uint8_t>(EFRAME_COUNTER_MASKS::MODE)) != 0;
-    mSequenceIndex = bBit7 ? 4 : 3;
-    mSequenceCycleCount = bBit7 ? 0 : mSequenceCycleCount;
+    mFrameResetCycles = 3;
 }
 
 float APU::TestOutput(uint8_t CPUCycles, uint8_t i)
