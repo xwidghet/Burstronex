@@ -66,7 +66,8 @@ class CPU {
 
     int64_t mCycleCount = 0;
 
-    bool mbIRQTriggered = false;
+    bool mbFrameCounterIRQTriggered = false;
+    bool mbDMCIRQTriggered = false;
 
     MemoryMapper* mMemoryMapper;
 
@@ -89,7 +90,9 @@ public :
 
     int64_t GetCycleCount() const;
 
-    void SetIRQ(bool bValue);
+    void SetFrameCounterIRQ(bool bValue);
+
+    void SetDMCIRQ(bool bValue);
 
 // Should probably move instructions to a different file, but this'll do for now.
 private:

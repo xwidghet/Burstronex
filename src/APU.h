@@ -35,10 +35,10 @@ static const uint16_t NOISE_UNUSED = 0x400D;
 static const uint16_t NOISE_MODE_PERIOD_ADDRESS = 0x400E;
 static const uint16_t NOISE_LENGTHCOUNTER_ADDRESS = 0x400F;
 
-static const uint16_t DMC_TIMER_ADDRESS = 0x4010;
-static const uint16_t DMC_MEMORYREADER_ADDRESS= 0x4011;
-static const uint16_t DMC_SAMPLEBUFFER_ADDRESS = 0x4012;
-static const uint16_t DMC_OUTPUTUNIT_ADDRESS = 0x4013;
+static const uint16_t DMC_ILR_ADDRESS = 0x4010;
+static const uint16_t DMC_LOADCOUNTER_ADDRESS= 0x4011;
+static const uint16_t DMC_SAMPLE_ADDRESS_ADDRESS = 0x4012;
+static const uint16_t DMC_SAMPLE_LENGTH_ADDRESS = 0x4013;
 
 static const uint16_t STATUS_ADDRESS = 0x4015;
 static const uint16_t FRAMECOUNTER_ADDRESS = 0x4017;
@@ -134,8 +134,7 @@ enum class ENOISE_LENGTHCOUNTER_MASKS : uint8_t {
     LENGTH_COUNTER_LOAD = 0b11111000,
 };
 
-// DMC_TIMER_ADDRESS
-enum class EDMC_TIMER_MASKS : uint8_t {
+enum class EDMC_ILR_MASKS : uint8_t {
     // I
     IRQ_ENABLE = 0b10000000,
     // L
@@ -144,20 +143,17 @@ enum class EDMC_TIMER_MASKS : uint8_t {
     FREQUENCY = 0b00001111
 };
 
-// DMC_MEMORYREADER_ADDRESS
-enum class EDMC_MEMORYREADER_MASKS : uint8_t {
+enum class EDMC_LOADCOUNTER_MASKS : uint8_t {
     // D
     LOAD_COUNTER = 0b01111111
 };
 
-// DMC_SAMPLEBUFFER_ADDRESS
-enum class EDMC_SAMPLEBUFFER_MASKS : uint8_t {
+enum class EDMC_SAMPLEBUFFER_ADDRESS_MASKS : uint8_t {
     // A
     ADDRESS = 0b11111111
 };
 
-// DMC_OUTPUTUNIT_ADDRESS
-enum class EDMC_OUTPUTUNIT_MASKS : uint8_t {
+enum class EDMC_SAMPLE_LENGTH_MASKS : uint8_t {
     // L
     LENGTH = 0b11111111
 };
@@ -178,7 +174,7 @@ enum class ESTATUS_READ_MASKS : uint8_t {
     // N, 1 if length counter > 0, 0 if 0 was written here or length counter == 0 for Noise
     NOISE_PLAYING = 0b00001000,
     // T, 1 if length counter > 0, 0 if 0 was written here or length counter == 0  for Triangle. Linear counter is ignored.
-    TRIANGLE_PLAYING = 0b00001000,
+    TRIANGLE_PLAYING = 0b00000100,
     // 2, 1 if length counter > 0, 0 if 0 was written here or length counter == 0  for Pulse 2
     PULSE_2_PLAYING = 0b00000010,
     // 1,  1 if length counter > 0, 0 if 0 was written here or length counter == 0  for Pulse 1
@@ -265,10 +261,10 @@ class APU {
         uint8_t Noise_ModePeriod;
         uint8_t Noise_LengthCounter;
 
-        uint8_t DMC_Timer;
-        uint8_t DMC_MemoryReader;
-        uint8_t DMC_SampleBuffer;
-        uint8_t DMC_OutputUnit;
+        uint8_t DMC_ILR;
+        uint8_t DMC_LOADCOUNTER;
+        uint8_t DMC_SAMPLE_ADDRESS;
+        uint8_t DMC_SAMPLE_LENGTH;
 
         uint8_t Status;
         uint8_t FrameCounter;
@@ -373,12 +369,44 @@ class APU {
         void ClockSequencer(const uint8_t ModePeriodRegister);
     };
 
+    struct DMCUnit {
+        bool mbIsIRQEnabled = false;
+        bool mbIsLooping = false;
+        bool mbIsSilenced = true;
+
+        uint16_t mRate = 0;
+        std::array<uint16_t, 16> mRateTable;
+
+        uint16_t mSampleAddress = 0;
+        uint16_t mSampleLength = 0;
+
+        uint16_t mCurrentSampleAddress = 0;
+
+        // Series of bits which drive incrementing/decrementing the Output Sample.
+        uint8_t mSampleBuffer = 0;
+        uint16_t mBytesRemaining = 0;
+
+        bool mbSilenceFlag = false;
+
+        uint16_t mTimer = 0;
+        uint8_t mRSR = 0;
+        uint8_t mBitsRemaining = 0;
+
+        // 7 Bits, 0-127 value
+        uint8_t mOutputSample = 0;
+
+        void ClockMemoryReader(CPU* CPU, MemoryMapper* RAM);
+        void ClockOutputUnit();
+    };
+
     PulseUnit mPulse1;
     PulseUnit mPulse2;
 
     TriangleUnit mTriangle;
 
     NoiseUnit mNoise;
+
+    DMCUnit mDMC;
 
 public:
     APU();
@@ -408,10 +436,10 @@ public:
     void WriteNoise_LengthCounter(const uint8_t Data);
     void WriteNoise_ModePeriod(const uint8_t Data);
 
-    void WriteDMC_Timer(const uint8_t Data);
-    void WriteDMC_MemoryReader(const uint8_t Data);
-    void WriteDMC_SampleBuffer(const uint8_t Data);
-    void WriteDMC_OutputUnit(const uint8_t Data);
+    void WriteDMC_ILR(const uint8_t Data);
+    void WriteDMC_LoadCounter(const uint8_t Data);
+    void WriteDMC_SampleAddress(const uint8_t Data);
+    void WriteDMC_SampleLength(const uint8_t Data);
 
     uint8_t ReadStatus();
     void WriteStatus(const uint8_t Data);

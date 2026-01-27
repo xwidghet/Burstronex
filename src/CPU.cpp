@@ -58,7 +58,8 @@ void CPU::Init(const ROMData& ROM, MemoryMapper* MemoryMapper, PPU* PPU)
     // NES uses a decending stack from 0x1FF to 0x100;
     mStackLocation = 0x0100;
 
-    mbIRQTriggered = false;
+    mbFrameCounterIRQTriggered = false;
+    mbDMCIRQTriggered = false;
 
     // 6502 can only address up to 64KB due to 16bit address bus.
     // Zero Page: 0x0000 - 0x00FF
@@ -106,9 +107,14 @@ int64_t CPU::GetCycleCount() const
     return mCycleCount;
 }
 
-void CPU::SetIRQ(bool bValue)
+void CPU::SetFrameCounterIRQ(bool bValue)
 {
-    mbIRQTriggered = bValue;
+    mbFrameCounterIRQTriggered = bValue;
+}
+
+void CPU::SetDMCIRQ(bool bValue)
+{
+    mbDMCIRQTriggered = bValue;
 }
 
 uint8_t CPU::ExecuteNextInstruction()
@@ -118,7 +124,7 @@ uint8_t CPU::ExecuteNextInstruction()
     if ((mRegisters.P & static_cast<uint8_t>(EStatusFlags::INTERRUPT_DISABLE)) == 0)
     {
         // Other Interrupts (IRQs)
-        if (mbIRQTriggered)
+        if (mbFrameCounterIRQTriggered || mbDMCIRQTriggered)
         {
             TriggerInterrupt();
 

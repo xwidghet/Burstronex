@@ -213,17 +213,17 @@ void MemoryMapper::Write8Bit(const uint32_t Address, uint8_t Value)
             case NOISE_LENGTHCOUNTER_ADDRESS:
                 mAPU->WriteNoise_LengthCounter(Value);
                 break;
-            case DMC_TIMER_ADDRESS:
-                mAPU->WriteDMC_Timer(Value);
+            case DMC_ILR_ADDRESS:
+                mAPU->WriteDMC_ILR(Value);
                 break;
-            case DMC_MEMORYREADER_ADDRESS:
-                mAPU->WriteDMC_MemoryReader(Value);
+            case DMC_LOADCOUNTER_ADDRESS:
+                mAPU->WriteDMC_LoadCounter(Value);
                 break;
-            case DMC_SAMPLEBUFFER_ADDRESS:
-                mAPU->WriteDMC_SampleBuffer(Value);
+            case DMC_SAMPLE_ADDRESS_ADDRESS:
+                mAPU->WriteDMC_SampleAddress(Value);
                 break;
-            case DMC_OUTPUTUNIT_ADDRESS:
-                mAPU->WriteDMC_OutputUnit(Value);
+            case DMC_SAMPLE_LENGTH_ADDRESS:
+                mAPU->WriteDMC_SampleLength(Value);
                 break;
             case STATUS_ADDRESS:
                 mAPU->WriteStatus(Value);

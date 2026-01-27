@@ -96,12 +96,15 @@ void APU::Init(MemoryMapper* MemoryMapper, CPU* CPU, const ECPU_TIMING Timing)
         mFrameInterruptCycleCount = PAL_FRAME_INTERRUPT_CYCLE_COUNT;
         mSequenceCycleInterval = PAL_SEQUENCE_STEP_CYCLE_COUNT;
         mNoise.mNoiseTimerLUT = {4, 8, 14, 30, 60, 88, 118, 148, 188, 236, 354, 472, 708,  944, 1890, 3778};
+        mDMC.mRateTable = {398, 354, 316, 298, 276, 236, 210, 198, 176, 148, 132, 118,  98,  78,  66,  50 };
+
     }
     else
     {
         mFrameInterruptCycleCount = NTSC_FRAME_INTERRUPT_CYCLE_COUNT;
         mSequenceCycleInterval = NTSC_SEQUENCE_STEP_CYCLE_COUNT;
         mNoise.mNoiseTimerLUT = {4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068};
+        mDMC.mRateTable = {428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54};
     }
 
     mPulse2.mbIsPulse2 = true;
@@ -189,6 +192,9 @@ void APU::ExecuteCycle()
     mPulse2.Execute(mRegisters.Pulse2_Envelope);
 
     mNoise.ClockTimer(mRegisters.Noise_ModePeriod);
+
+    mDMC.ClockMemoryReader(mCPU, mRAM);
+    mDMC.ClockOutputUnit();
 }
 
 void APU::ExecuteSequencer()
@@ -305,7 +311,7 @@ void APU::TriggerFrameInterrupt()
     if (mMode == 0 && !bBlockIRQ)
     {
         mRegisters.Status |= static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
-        mCPU->SetIRQ(true);
+        mCPU->SetFrameCounterIRQ(true);
     }
 
     // Start audio device once we have one audio frame of data generated.
@@ -319,16 +325,12 @@ void APU::TriggerFrameInterrupt()
 
 float APU::DACOutput()
 {
-    uint8_t Triangle = mTriangle.mOutputSample;
-    uint8_t Noise = mNoise.mOutputSample;
-    uint8_t DMC = 0;
-
     // Pulse, Triangle, and Noise should be 0-15
     // DMC should be 0-127
     // DAC Output is a float in the range [0.0, 1.0]
     float PulseOut = SquareLUT[mPulse1.mOutputSample + mPulse2.mOutputSample];
 
-    float TNDOut = TNDLUT[3*Triangle + 2*Noise + DMC];
+    float TNDOut = TNDLUT[3*mTriangle.mOutputSample + 2*mNoise.mOutputSample + mDMC.mOutputSample];
 
     return PulseOut + TNDOut;
 }
@@ -504,24 +506,40 @@ void APU::WriteNoise_LengthCounter(const uint8_t Data)
     mNoise.mEnvelope.mbReloadFlag = true;
 }
 
-void APU::WriteDMC_Timer(const uint8_t Data)
+void APU::WriteDMC_ILR(const uint8_t Data)
 {
-    mRegisters.DMC_Timer = Data;
+    mRegisters.DMC_ILR = Data;
+
+    mDMC.mbIsIRQEnabled = (Data & static_cast<uint8_t>(EDMC_ILR_MASKS::IRQ_ENABLE)) != 0;
+    mDMC.mbIsLooping = (Data & static_cast<uint8_t>(EDMC_ILR_MASKS::LOOP)) != 0;
+    mDMC.mRate = mDMC.mRateTable[Data & static_cast<uint8_t>(EDMC_ILR_MASKS::FREQUENCY)];
+
+    if (!mDMC.mbIsIRQEnabled)
+    {
+        mCPU->SetDMCIRQ(false);
+    }
 }
 
-void APU::WriteDMC_MemoryReader(const uint8_t Data)
+void APU::WriteDMC_LoadCounter(const uint8_t Data)
 {
-    mRegisters.DMC_MemoryReader = Data;
+    mRegisters.DMC_LOADCOUNTER = Data;
+
+    mDMC.mOutputSample = Data & static_cast<uint8_t>(EDMC_LOADCOUNTER_MASKS::LOAD_COUNTER);
 }
 
-void APU::WriteDMC_SampleBuffer(const uint8_t Data)
+void APU::WriteDMC_SampleAddress(const uint8_t Data)
 {
-    mRegisters.DMC_SampleBuffer = Data;
+    mRegisters.DMC_SAMPLE_ADDRESS = Data;
+
+    mDMC.mSampleAddress = 0xC000 + (uint16_t(Data) << 6);
+    mDMC.mCurrentSampleAddress = mDMC.mSampleAddress;
 }
 
-void APU::WriteDMC_OutputUnit(const uint8_t Data)
+void APU::WriteDMC_SampleLength(const uint8_t Data)
 {
-    mRegisters.DMC_OutputUnit = Data;
+    mRegisters.DMC_SAMPLE_LENGTH = Data;
+
+    mDMC.mSampleLength = (uint16_t(Data) << 4) + 1;
 }
 
 uint8_t APU::ReadStatus()
@@ -532,12 +550,13 @@ uint8_t APU::ReadStatus()
     Output |= mPulse2.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING) : 0;
     Output |= mTriangle.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING) : 0;
     Output |= mNoise.mLengthCounter > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::NOISE_PLAYING) : 0;
+    Output |= mDMC.mBytesRemaining > 0 ? static_cast<uint8_t>(ESTATUS_WRITE_MASKS::DMC_ACTIVE) : 0;
 
     // Clears Frame Interrupt flag but not DMC Interrupt flag
     mRegisters.Status &= ~static_cast<uint8_t>(ESTATUS_READ_MASKS::FRAME_INTERRUPT);
 
-    // Are there multiple sources of IRQ?
-    mCPU->SetIRQ(false);
+    // DMC IRQ is NOT cleared here.
+    mCPU->SetFrameCounterIRQ(false);
 
     return Output;
 }
@@ -550,12 +569,24 @@ void APU::WriteStatus(const uint8_t Data)
     bool bPulse1LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING)) == 0;
     bool bPulse2LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING)) == 0;
     bool bTrianglePlaying = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING));
+    bool bDMCPlaying = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::DMC_ACTIVE));
 
     mPulse1.mLengthCounter = bPulse1LCHalt ? 0 : mPulse1.mLengthCounter;
     mPulse2.mLengthCounter = bPulse2LCHalt ? 0 : mPulse2.mLengthCounter;
 
     mTriangle.mbIsEnabled = bTrianglePlaying;
     mTriangle.mLengthCounter = bTrianglePlaying ? mTriangle.mLengthCounter : 0;
+
+    if (bDMCPlaying)
+    {
+        mDMC.mBytesRemaining = mDMC.mBytesRemaining == 0 ? mDMC.mSampleLength : mDMC.mBytesRemaining;
+    }
+    else
+    {
+        mDMC.mBytesRemaining = 0;
+    }
+
+    mCPU->SetDMCIRQ(false);
 }
 
 
@@ -805,4 +836,72 @@ void APU::NoiseUnit::ClockSequencer(const uint8_t ModePeriodRegister)
 
     bool bOutputValue = !bBit0 && mLengthCounter > 0;
     mOutputSample = bOutputValue ? mEnvelope.GetVolume() : 0;
+}
+
+void APU::DMCUnit::ClockMemoryReader(CPU* CPU, MemoryMapper* RAM)
+{
+    if (mSampleBuffer == 0 && mBytesRemaining > 0)
+    {
+        // Should stall the CPU for 1-4 cycles.
+        mSampleBuffer = RAM->Read8Bit(mCurrentSampleAddress);
+
+        mCurrentSampleAddress = mCurrentSampleAddress == 0xFFFF ? 0x8000 : mCurrentSampleAddress+1;
+
+        mBytesRemaining -= 1;
+        if (mBytesRemaining == 0)
+        {
+            if (mbIsLooping)
+            {
+                mCurrentSampleAddress = mSampleAddress;
+                mBytesRemaining = mSampleLength;
+            }
+            else if (mbIsIRQEnabled)
+            {
+                CPU->SetDMCIRQ(true);
+            }
+        }
+    }
+}
+
+void APU::DMCUnit::ClockOutputUnit()
+{
+    if (mTimer == 0)
+    {
+        mTimer = mRate;
+    }
+    else if (mTimer >= 2)
+    {
+        // Timer is in CPU cycles
+        mTimer -= 2;
+
+        if (mTimer == 0)
+        {
+            mTimer = mRate;
+
+            if (!mbIsSilenced)
+            {
+                bool bPositive = ((mRSR & 0b1) == 1);
+                if (bPositive && mOutputSample < 126)
+                    mOutputSample += 2;
+
+                if (!bPositive && mOutputSample > 1)
+                    mOutputSample -= 2;
+            }
+
+            mRSR = mRSR >> 1;
+            mBitsRemaining = mBitsRemaining > 0 ? mBitsRemaining-1 : 0;
+
+            if (const bool bOutputCycleFinished = mBitsRemaining == 0)
+            {
+                mBitsRemaining = 8;
+                mbIsSilenced = mSampleBuffer == 0 ? true : false;
+                if (!mbIsSilenced)
+                {
+                    mRSR = mSampleBuffer;
+                    mSampleBuffer = 0;
+                }
+
+            }
+        }
+    }
 }
