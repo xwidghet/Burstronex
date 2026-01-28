@@ -352,12 +352,9 @@ void APU::WritePulse1_Envelope(const uint8_t Data)
 
 void APU::WritePulse1_Sweep(const uint8_t Data)
 {
-    mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Sweep data Updated!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-
     mPulse1.mSweep.mShiftCount = Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
     mPulse1.mSweep.mbNegateFlag = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
     mPulse1.mSweep.mDividerLength = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
-    mPulse1.mSweep.mDividerLength += 1;
 
     mPulse1.mSweep.mbIsEnabled = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
     mPulse1.mSweep.mbReloadFlag = true;
@@ -384,7 +381,6 @@ void APU::WritePulse1_LengthCounter(const uint8_t Data)
     int16_t TimerHigh = uint16_t(Data & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     mPulse1.mSweep.mPeriodLength &= 0x00FF;
     mPulse1.mSweep.mPeriodLength |= TimerHigh;
-    mPulse1.mSweep.mPeriodLength += 1;
 }
 
 void APU::WritePulse2_Envelope(const uint8_t Data)
@@ -401,7 +397,6 @@ void APU::WritePulse2_Sweep(const uint8_t Data)
     mPulse2.mSweep.mShiftCount = Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
     mPulse2.mSweep.mbNegateFlag = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
     mPulse2.mSweep.mDividerLength = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
-    mPulse2.mSweep.mDividerLength += 1;
 
     mPulse2.mSweep.mbIsEnabled = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
     mPulse2.mSweep.mbReloadFlag = true;
@@ -428,7 +423,6 @@ void APU::WritePulse2_LengthCounter(const uint8_t Data)
     int16_t TimerHigh = uint16_t(Data& static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     mPulse2.mSweep.mPeriodLength &= 0x00FF;
     mPulse2.mSweep.mPeriodLength |= TimerHigh;
-    mPulse2.mSweep.mPeriodLength += 1;
 }
 
 void APU::WriteTriangle_LinearCounter(const uint8_t Data)
@@ -456,7 +450,6 @@ void APU::WriteTriangle_LengthCounter(const uint8_t Data)
 
     mTriangle.mTimerLength &= 0x00FF;
     mTriangle.mTimerLength |= TimerHigh;
-    mTriangle.mTimerLength += 1;
 
     mTriangle.mbLinearCounterReloadFlag = true;
 
@@ -599,7 +592,6 @@ void APU::EnvelopeUnit::Clock()
         mValue = 15;
 
         mDivider = mConstantVolume_Envelope;
-        mDivider += 1;
     }
     else
     {
@@ -615,7 +607,6 @@ void APU::EnvelopeUnit::Clock()
             }
 
             mDivider = mConstantVolume_Envelope;
-            mDivider += 1;
         }
         else
         {
