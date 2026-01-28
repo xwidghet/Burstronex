@@ -243,29 +243,6 @@ class APU {
     CPU* mCPU;
 
     struct ApuRegisters {
-        uint8_t Pulse1_Timer;
-        uint8_t Pulse1_LengthCounter;
-        uint8_t Pulse1_Envelope;
-        uint8_t Pulse1_Sweep;
-
-        uint8_t Pulse2_Timer;
-        uint8_t Pulse2_LengthCounter;
-        uint8_t Pulse2_Envelope;
-        uint8_t Pulse2_Sweep;
-
-        uint8_t Triangle_Timer;
-        uint8_t Triangle_LengthCounter;
-        uint8_t Triangle_LinearCounter;
-
-        uint8_t Noise_Envelope;
-        uint8_t Noise_ModePeriod;
-        uint8_t Noise_LengthCounter;
-
-        uint8_t DMC_ILR;
-        uint8_t DMC_LOADCOUNTER;
-        uint8_t DMC_SAMPLE_ADDRESS;
-        uint8_t DMC_SAMPLE_LENGTH;
-
         uint8_t Status;
         uint8_t FrameCounter;
     } mRegisters;
@@ -313,11 +290,15 @@ class APU {
         bool mbIsMutingChannel = false;
 
         uint8_t mDivider = 0;
+        uint8_t mDividerLength = 0;
         bool mbReloadFlag = false;
 
         uint16_t mPeriod = 0;
         uint16_t mPeriodLength = 0;
         uint16_t mTargetPeriod = 0;
+
+        uint8_t mShiftCount = 0;
+        bool mbNegateFlag = 0;
     };
 
     struct PulseUnit {
@@ -326,47 +307,57 @@ class APU {
         uint8_t mSequencerIndex = 0;
         uint8_t mLengthCounter = 0;
 
+        uint8_t mDuty = 0;
+
+        bool mbLengthCounterHalt = false;
         bool mbIsPulse2 = false;
 
         uint8_t mOutputSample = 0;
 
-        void ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister);
-        void ClockHalfFrameSweep(const uint8_t SweepRegister);
-        void ClockSweep(const uint8_t SweepRegister);
-        void ClockLengthCounter(bool bInfinite);
-        void Execute(const uint8_t EnvelopeRegister);
+        void ClockSequencer();
+        void ClockHalfFrameSweep();
+        void ClockSweep();
+        void ClockLengthCounter();
+        void Execute();
     };
 
     struct TriangleUnit {
         uint16_t mTimer = 0;
+        uint16_t mTimerLength = 0;
         uint8_t mLengthCounter = 0;
         uint8_t mLinearCounter = 0;
+        uint8_t mLinearCounterLength = 0;
+
+        bool mbLengthCounterHalt_LinearCounterControl = false;
         bool mbLinearCounterReloadFlag = false;
         uint8_t mSequenceIndex = 0;
 
         bool mbIsEnabled = false;
         uint8_t mOutputSample = 0;
 
-        void ClockTimer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister);
-        void ClockLengthCounter(const uint8_t LinearCounterRegister);
-        void ClockLinearCounter(const uint8_t LinearCounterRegister);
+        void ClockTimer();
+        void ClockLengthCounter();
+        void ClockLinearCounter();
         void ClockSequencer();
     };
 
     struct NoiseUnit {
         uint8_t mTimer = 0;
+        uint8_t mTimerLength = 0;
         EnvelopeUnit mEnvelope;
         uint8_t mLengthCounter = 0;
         uint16_t mLFSR = 1;
 
         std::array<uint16_t, 16> mNoiseTimerLUT;
 
+        bool mbMode = false;
         bool mbIsEnabled = false;
+        bool mbLengthCounterHalt = false;
         uint8_t mOutputSample = 0;
 
-        void ClockTimer(const uint8_t ModePeriodRegister);
-        void ClockLengthCounter(const uint8_t EnvelopeRegister);
-        void ClockSequencer(const uint8_t ModePeriodRegister);
+        void ClockTimer();
+        void ClockLengthCounter();
+        void ClockSequencer();
     };
 
     struct DMCUnit {

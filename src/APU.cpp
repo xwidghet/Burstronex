@@ -170,7 +170,7 @@ void APU::Execute(const uint8_t CPUCycles)
 
         // Every CPU Cycle the APU outputs one sample,
         // and the Triangle unit clocks on every CPU Cycle
-        mTriangle.ClockTimer(mRegisters.Triangle_Timer, mRegisters.Triangle_LengthCounter);
+        mTriangle.ClockTimer();
 
         //float NewSample = TestOutput(CPUCycles, i);
         float NewSample = DACOutput()*2.f - 1.f;
@@ -182,16 +182,16 @@ void APU::Execute(const uint8_t CPUCycles)
 
 void APU::ExecuteCycle()
 {
-    mPulse1.ClockSweep(mRegisters.Pulse1_Sweep);
-    mPulse2.ClockSweep(mRegisters.Pulse2_Sweep);
+    mPulse1.ClockSweep();
+    mPulse2.ClockSweep();
 
-    mPulse1.ClockSequencer(mRegisters.Pulse1_Timer, mRegisters.Pulse1_LengthCounter);
-    mPulse2.ClockSequencer(mRegisters.Pulse2_Timer, mRegisters.Pulse2_LengthCounter);
+    mPulse1.ClockSequencer();
+    mPulse2.ClockSequencer();
 
-    mPulse1.Execute(mRegisters.Pulse1_Envelope);
-    mPulse2.Execute(mRegisters.Pulse2_Envelope);
+    mPulse1.Execute();
+    mPulse2.Execute();
 
-    mNoise.ClockTimer(mRegisters.Noise_ModePeriod);
+    mNoise.ClockTimer();
 
     mDMC.ClockMemoryReader(mCPU, mRAM);
     mDMC.ClockOutputUnit();
@@ -279,17 +279,15 @@ void APU::ExecuteMode1Sequencer()
 
 void APU::HalfFrame()
 {
-    bool bPulse1Infinite = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
-    bool bPulse2Infinite = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
-    mPulse1.ClockLengthCounter(bPulse1Infinite);
-    mPulse2.ClockLengthCounter(bPulse2Infinite);
+    mPulse1.ClockLengthCounter();
+    mPulse2.ClockLengthCounter();
 
-    mPulse1.ClockHalfFrameSweep(mRegisters.Pulse1_Sweep);
-    mPulse2.ClockHalfFrameSweep(mRegisters.Pulse2_Sweep);
+    mPulse1.ClockHalfFrameSweep();
+    mPulse2.ClockHalfFrameSweep();
 
-    mTriangle.ClockLengthCounter(mRegisters.Triangle_LinearCounter);
+    mTriangle.ClockLengthCounter();
 
-    mNoise.ClockLengthCounter(mRegisters.Noise_Envelope);
+    mNoise.ClockLengthCounter();
 }
 
 void APU::QuarterFrame()
@@ -298,7 +296,7 @@ void APU::QuarterFrame()
     mPulse2.mEnvelope.Clock();
     mNoise.mEnvelope.Clock();
 
-    mTriangle.ClockLinearCounter(mRegisters.Triangle_LinearCounter);
+    mTriangle.ClockLinearCounter();
 }
 
 void APU::TriggerFrameInterrupt()
@@ -343,163 +341,149 @@ float APU::GetBufferFillPercentage() const
         return 1.f;
 }
 
-void APU::WritePulse1_Timer(const uint8_t Data)
-{
-    mRegisters.Pulse1_Timer = Data;
-
-    mPulse1.mSweep.mPeriodLength &= 0xFF00;
-    mPulse1.mSweep.mPeriodLength |=  mRegisters.Pulse1_Timer;
-}
-
-void APU::WritePulse1_LengthCounter(const uint8_t Data)
-{
-    mRegisters.Pulse1_LengthCounter = Data;
-
-    bool bPulse1LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING)) == 0;
-    if (!bPulse1LCHalt)
-    {
-        uint8_t LengthCounterIndex = (mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
-        mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
-    }
-
-    mPulse1.mSequencerIndex = 0;
-    mPulse1.mEnvelope.mbReloadFlag = true;
-
-    int16_t TimerHigh = uint16_t(mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
-    mPulse1.mSweep.mPeriodLength &= 0x00FF;
-    mPulse1.mSweep.mPeriodLength |= TimerHigh;
-}
-
 void APU::WritePulse1_Envelope(const uint8_t Data)
 {
-    mRegisters.Pulse1_Envelope = Data;
-
-    mPulse1.mEnvelope.mbIsLooping = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
-    mPulse1.mEnvelope.mbIsConstantVolume = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
-    mPulse1.mEnvelope.mConstantVolume_Envelope = (mRegisters.Pulse1_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
+    mPulse1.mDuty = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
+    mPulse1.mbLengthCounterHalt = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse1.mEnvelope.mbIsLooping = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse1.mEnvelope.mbIsConstantVolume = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
+    mPulse1.mEnvelope.mConstantVolume_Envelope = (Data& static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
 }
 
 void APU::WritePulse1_Sweep(const uint8_t Data)
 {
     mLog->Log(ELOGGING_SOURCES::APU, ELOGGING_MODE::INFO, "Sweep data Updated!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 
-    mRegisters.Pulse1_Sweep = Data;
+    mPulse1.mSweep.mShiftCount = Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
+    mPulse1.mSweep.mbNegateFlag = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
+    mPulse1.mSweep.mDividerLength = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
+    mPulse1.mSweep.mDividerLength += 1;
 
-    uint16_t Timer = uint16_t(mRegisters.Pulse1_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
-    Timer |= mRegisters.Pulse1_Timer;
-
-    mPulse1.mSweep.mTargetPeriod = Timer + 1;
-    mPulse1.mSweep.mPeriod = mPulse1.mSweep.mTargetPeriod;
-    mPulse1.mSweep.mPeriodLength = mPulse1.mSweep.mPeriod;
-
-    mPulse1.mSweep.mbIsEnabled = (mRegisters.Pulse1_Sweep & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
-
+    mPulse1.mSweep.mbIsEnabled = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
     mPulse1.mSweep.mbReloadFlag = true;
+}
+
+void APU::WritePulse1_Timer(const uint8_t Data)
+{
+    mPulse1.mSweep.mPeriodLength &= 0xFF00;
+    mPulse1.mSweep.mPeriodLength |=  Data;
+}
+
+void APU::WritePulse1_LengthCounter(const uint8_t Data)
+{
+    bool bPulse1LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_1_PLAYING)) == 0;
+    if (!bPulse1LCHalt)
+    {
+        uint8_t LengthCounterIndex = (Data & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        mPulse1.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
+    }
+
+    mPulse1.mSequencerIndex = 0;
+    mPulse1.mEnvelope.mbReloadFlag = true;
+
+    int16_t TimerHigh = uint16_t(Data & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    mPulse1.mSweep.mPeriodLength &= 0x00FF;
+    mPulse1.mSweep.mPeriodLength |= TimerHigh;
+    mPulse1.mSweep.mPeriodLength += 1;
+}
+
+void APU::WritePulse2_Envelope(const uint8_t Data)
+{
+    mPulse2.mDuty = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
+    mPulse2.mbLengthCounterHalt = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse2.mEnvelope.mbIsLooping = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
+    mPulse2.mEnvelope.mbIsConstantVolume = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
+    mPulse2.mEnvelope.mConstantVolume_Envelope = (Data & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
+}
+
+void APU::WritePulse2_Sweep(const uint8_t Data)
+{
+    mPulse2.mSweep.mShiftCount = Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
+    mPulse2.mSweep.mbNegateFlag = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
+    mPulse2.mSweep.mDividerLength = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
+    mPulse2.mSweep.mDividerLength += 1;
+
+    mPulse2.mSweep.mbIsEnabled = (Data & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
+    mPulse2.mSweep.mbReloadFlag = true;
 }
 
 void APU::WritePulse2_Timer(const uint8_t Data)
 {
-    mRegisters.Pulse2_Timer = Data;
-
     mPulse2.mSweep.mPeriodLength &= 0xFF00;
-    mPulse2.mSweep.mPeriodLength |=  mRegisters.Pulse2_Timer;
+    mPulse2.mSweep.mPeriodLength |=  Data;
 }
 
 void APU::WritePulse2_LengthCounter(const uint8_t Data)
 {
-    mRegisters.Pulse2_LengthCounter = Data;
-
     bool bPulse2LCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::PULSE_2_PLAYING)) == 0;
     if (!bPulse2LCHalt)
     {
-        uint8_t LengthCounterIndex = (mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        uint8_t LengthCounterIndex = (Data & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
         mPulse2.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
     }
 
     mPulse2.mSequencerIndex = 0;
     mPulse2.mEnvelope.mbReloadFlag = true;
 
-    int16_t TimerHigh = uint16_t(mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
+    int16_t TimerHigh = uint16_t(Data& static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
     mPulse2.mSweep.mPeriodLength &= 0x00FF;
     mPulse2.mSweep.mPeriodLength |= TimerHigh;
-}
-
-void APU::WritePulse2_Envelope(const uint8_t Data)
-{
-    mRegisters.Pulse2_Envelope = Data;
-
-    mPulse2.mEnvelope.mbIsLooping = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::ENVELOPE_LOOP)) != 0;
-    mPulse2.mEnvelope.mbIsConstantVolume = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
-    mPulse2.mEnvelope.mConstantVolume_Envelope = (mRegisters.Pulse2_Envelope & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
-}
-
-void APU::WritePulse2_Sweep(const uint8_t Data)
-{
-    mRegisters.Pulse2_Sweep = Data;
-
-    uint16_t Timer = uint16_t(mRegisters.Pulse2_LengthCounter & static_cast<uint8_t>(EPULSE_LENGTH_COUNTER_MASKS::TIMER_HIGH)) << 8;
-    Timer |= mRegisters.Pulse2_Timer;
-
-    mPulse2.mSweep.mTargetPeriod = Timer + 1;
-    mPulse2.mSweep.mPeriod = mPulse2.mSweep.mTargetPeriod;
-    mPulse2.mSweep.mPeriodLength = mPulse2.mSweep.mPeriod;
-
-    mPulse2.mSweep.mbIsEnabled = (mRegisters.Pulse2_Sweep & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_ENABLED)) != 0;
-
-    mPulse2.mSweep.mbReloadFlag = true;
+    mPulse2.mSweep.mPeriodLength += 1;
 }
 
 void APU::WriteTriangle_LinearCounter(const uint8_t Data)
 {
-    mRegisters.Triangle_LinearCounter = Data;
+    mTriangle.mbLengthCounterHalt_LinearCounterControl = (Data & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LENGTH_COUNTER_HALT_LINEAR_COUNTER_CONTROL)) != 0;
+    mTriangle.mLinearCounterLength = Data & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LINEAR_COUNTER_LOAD);
 }
 
 void APU::WriteTriangle_Timer(const uint8_t Data)
 {
-    mRegisters.Triangle_Timer = Data;
+    mTriangle.mTimerLength &= 0xFF00;
+    mTriangle.mTimerLength |= Data;
 }
 
 void APU::WriteTriangle_LengthCounter(const uint8_t Data)
 {
-    mRegisters.Triangle_LengthCounter = Data;
-
     bool bTriangleLCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::TRIANGLE_PLAYING)) == 0;
     if (!bTriangleLCHalt)
     {
-        uint8_t LengthCounterIndex = (mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        uint8_t LengthCounterIndex = (Data & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
         mTriangle.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
     }
 
-    uint16_t Timer = uint16_t(mRegisters.Triangle_LengthCounter & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
-    Timer |= mRegisters.Triangle_Timer + 1;
+    uint16_t TimerHigh = uint16_t(Data & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
 
-    mTriangle.mTimer = Timer;
+    mTriangle.mTimerLength &= 0x00FF;
+    mTriangle.mTimerLength |= TimerHigh;
+    mTriangle.mTimerLength += 1;
+
     mTriangle.mbLinearCounterReloadFlag = true;
 
 }
 
 void APU::WriteNoise_Envelope(const uint8_t Data)
 {
-    mRegisters.Noise_Envelope = Data;
-
-    mNoise.mEnvelope.mbIsLooping = (mRegisters.Noise_Envelope & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
-    mNoise.mEnvelope.mbIsConstantVolume = (mRegisters.Noise_Envelope & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
-    mNoise.mEnvelope.mConstantVolume_Envelope = (mRegisters.Noise_Envelope & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
+    mNoise.mEnvelope.mbIsLooping = (Data & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
+    mNoise.mbLengthCounterHalt = (Data & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
+    mNoise.mEnvelope.mbIsConstantVolume = (Data & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::CONSTANT_VOLUME)) != 0;
+    mNoise.mEnvelope.mConstantVolume_Envelope = (Data & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::VOLUME_ENVELOPE));
 }
 
 void APU::WriteNoise_ModePeriod(const uint8_t Data)
 {
-    mRegisters.Noise_ModePeriod = Data;
+    uint8_t TimerIndex = Data & static_cast<uint8_t>(ENOISE_MODE_PERIOD_MASKS::NOISE_PERIOD);
+    mNoise.mTimerLength = mNoise.mNoiseTimerLUT[TimerIndex];
+
+    mNoise.mbMode = (Data & static_cast<uint8_t>(ENOISE_MODE_PERIOD_MASKS::NOISE_MODE)) != 0;
 }
 
 void APU::WriteNoise_LengthCounter(const uint8_t Data)
 {
-    mRegisters.Noise_LengthCounter = Data;
-
     bool bNoiseLCHalt = (mRegisters.Status & static_cast<uint8_t>(ESTATUS_WRITE_MASKS::NOISE_PLAYING)) == 0;
     if (!bNoiseLCHalt)
     {
-        uint8_t LengthCounterIndex = (mRegisters.Noise_LengthCounter & static_cast<uint8_t>(ENOISE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
+        uint8_t LengthCounterIndex = (Data & static_cast<uint8_t>(ENOISE_LENGTHCOUNTER_MASKS::LENGTH_COUNTER_LOAD)) >> 3;
         mNoise.mLengthCounter = LENGTH_COUNTER_TABLE[LengthCounterIndex];
     }
 
@@ -508,8 +492,6 @@ void APU::WriteNoise_LengthCounter(const uint8_t Data)
 
 void APU::WriteDMC_ILR(const uint8_t Data)
 {
-    mRegisters.DMC_ILR = Data;
-
     mDMC.mbIsIRQEnabled = (Data & static_cast<uint8_t>(EDMC_ILR_MASKS::IRQ_ENABLE)) != 0;
     mDMC.mbIsLooping = (Data & static_cast<uint8_t>(EDMC_ILR_MASKS::LOOP)) != 0;
     mDMC.mRate = mDMC.mRateTable[Data & static_cast<uint8_t>(EDMC_ILR_MASKS::FREQUENCY)];
@@ -522,23 +504,17 @@ void APU::WriteDMC_ILR(const uint8_t Data)
 
 void APU::WriteDMC_LoadCounter(const uint8_t Data)
 {
-    mRegisters.DMC_LOADCOUNTER = Data;
-
     mDMC.mOutputSample = Data & static_cast<uint8_t>(EDMC_LOADCOUNTER_MASKS::LOAD_COUNTER);
 }
 
 void APU::WriteDMC_SampleAddress(const uint8_t Data)
 {
-    mRegisters.DMC_SAMPLE_ADDRESS = Data;
-
     mDMC.mSampleAddress = 0xC000 + (uint16_t(Data) << 6);
     mDMC.mCurrentSampleAddress = mDMC.mSampleAddress;
 }
 
 void APU::WriteDMC_SampleLength(const uint8_t Data)
 {
-    mRegisters.DMC_SAMPLE_LENGTH = Data;
-
     mDMC.mSampleLength = (uint16_t(Data) << 4) + 1;
 }
 
@@ -653,14 +629,13 @@ uint8_t APU::EnvelopeUnit::GetVolume() const
     return mbIsConstantVolume ? mConstantVolume_Envelope : mValue;
 }
 
-void APU::PulseUnit::Execute(const uint8_t EnvelopeRegister)
+void APU::PulseUnit::Execute()
 {
     uint8_t Value = 1;
     Value *= !mSweep.mbIsMutingChannel;
     Value *= mLengthCounter > 0;
 
-    uint8_t Duty = (EnvelopeRegister & static_cast<uint8_t>(EPULSE_ENVELOPE_MASKS::DUTY)) >> 6;
-    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[Duty] & (1 << mSequencerIndex)) != 0;
+    uint8_t SequencerOutput = (DUTY_CYCLE_SEQUENCES[mDuty] & (1 << mSequencerIndex)) != 0;
     Value *= SequencerOutput;
 
     // 12.4Khz frequency limit.
@@ -669,7 +644,7 @@ void APU::PulseUnit::Execute(const uint8_t EnvelopeRegister)
     mOutputSample = Value*mEnvelope.GetVolume();
 }
 
-void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister)
+void APU::PulseUnit::ClockSequencer()
 {
     if (mSweep.mPeriod == 0)
     {
@@ -682,14 +657,12 @@ void APU::PulseUnit::ClockSequencer(const uint8_t TimerRegister, const uint8_t L
     }
 }
 
-void APU::PulseUnit::ClockHalfFrameSweep(const uint8_t SweepRegister)
+void APU::PulseUnit::ClockHalfFrameSweep()
 {
     if (mSweep.mDivider == 0)
     {
         // Period always iterates, but only writes back the new value when not muted, is enabled, and shift count is non-zero.
-        uint8_t ShiftCount = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
-
-        if (mSweep.mbIsEnabled && ShiftCount > 0)
+        if (mSweep.mbIsEnabled && mSweep.mShiftCount > 0)
         {
             if (!mSweep.mbIsMutingChannel)
             {
@@ -702,8 +675,7 @@ void APU::PulseUnit::ClockHalfFrameSweep(const uint8_t SweepRegister)
     {
         mSweep.mbReloadFlag = false;
 
-        mSweep.mDivider = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_PERIOD)) >> 4;
-        mSweep.mDivider += 1;
+        mSweep.mDivider = mSweep.mDividerLength;
     }
     else
     {
@@ -711,23 +683,20 @@ void APU::PulseUnit::ClockHalfFrameSweep(const uint8_t SweepRegister)
     }
 }
 
-void APU::PulseUnit::ClockSweep(const uint8_t SweepRegister)
+void APU::PulseUnit::ClockSweep()
 {
-    uint8_t ShiftCount = SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_SHIFT);
-    bool bNegateFlag = (SweepRegister & static_cast<uint8_t>(EPULSE_SWEEP_MASKS::SWEEP_UNIT_NEGATE)) != 0;
-
     // Pulse1 uses ones compliment
-    uint16_t Change = (mSweep.mPeriodLength >> ShiftCount);
-    mSweep.mTargetPeriod = bNegateFlag ? (mSweep.mPeriodLength + ~Change + mbIsPulse2) : (mSweep.mPeriodLength + Change);
+    uint16_t Change = (mSweep.mPeriodLength >> mSweep.mShiftCount);
+    mSweep.mTargetPeriod = mSweep.mbNegateFlag ? (mSweep.mPeriodLength + ~Change + mbIsPulse2) : (mSweep.mPeriodLength + Change);
 
     mSweep.mbIsMutingChannel = mSweep.mTargetPeriod > 0x7FF;
     mSweep.mbIsMutingChannel |= mSweep.mPeriodLength < 8;
 }
 
-void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
+void APU::PulseUnit::ClockLengthCounter()
 {
-    // Infinite doesn't modify it at all, so if it's at 0 it stays at zero.
-    if (bInfinite)
+    // Halt doesn't modify it at all, so if it's at 0 it stays at zero.
+    if (mbLengthCounterHalt)
         return;
 
     if (mLengthCounter > 0)
@@ -736,7 +705,7 @@ void APU::PulseUnit::ClockLengthCounter(bool bInfinite)
     }
 }
 
-void APU::TriangleUnit::ClockTimer(const uint8_t TimerRegister, const uint8_t LengthCounterRegister)
+void APU::TriangleUnit::ClockTimer()
 {
     if (mTimer == 0)
     {
@@ -745,10 +714,7 @@ void APU::TriangleUnit::ClockTimer(const uint8_t TimerRegister, const uint8_t Le
             ClockSequencer();
         }
 
-        uint16_t Timer = uint16_t(LengthCounterRegister & static_cast<uint8_t>(ETRIANGLE_LENGTHCOUNTER_MASKS::TIMER_HIGH)) << 8;
-        Timer |= TimerRegister;
-
-        mTimer = Timer + 1;
+        mTimer = mTimerLength;
     }
     else if (mTimer > 0)
     {
@@ -757,10 +723,9 @@ void APU::TriangleUnit::ClockTimer(const uint8_t TimerRegister, const uint8_t Le
 
 }
 
-void APU::TriangleUnit::ClockLengthCounter(const uint8_t LinearCounterRegister)
+void APU::TriangleUnit::ClockLengthCounter()
 {
-    bool bHalt = (LinearCounterRegister & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LENGTH_COUNTER_HALT_LINEAR_COUNTER_CONTROL)) != 0;
-    if (bHalt)
+    if (mbLengthCounterHalt_LinearCounterControl)
         return;
 
     if (mLengthCounter > 0)
@@ -769,13 +734,11 @@ void APU::TriangleUnit::ClockLengthCounter(const uint8_t LinearCounterRegister)
     }
 }
 
-void APU::TriangleUnit::ClockLinearCounter(const uint8_t LinearCounterRegister)
+void APU::TriangleUnit::ClockLinearCounter()
 {
-    bool bHalt = (LinearCounterRegister & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LENGTH_COUNTER_HALT_LINEAR_COUNTER_CONTROL)) != 0;
-
     if (mbLinearCounterReloadFlag)
     {
-        mLinearCounter = LinearCounterRegister & static_cast<uint8_t>(ETRIANGLE_LINEAR_COUNTER_MASKS::LINEAR_COUNTER_LOAD);
+        mLinearCounter = mLinearCounterLength;
     }
     else
     {
@@ -783,7 +746,7 @@ void APU::TriangleUnit::ClockLinearCounter(const uint8_t LinearCounterRegister)
             mLinearCounter -= 1;
     }
 
-    if (bHalt == false)
+    if (mbLengthCounterHalt_LinearCounterControl == false)
     {
         mbLinearCounterReloadFlag = false;
     }
@@ -795,14 +758,13 @@ void APU::TriangleUnit::ClockSequencer()
     mOutputSample = mbIsEnabled * TRIANGLE_SEQUENCE_TABLE[mSequenceIndex];
 }
 
-void APU::NoiseUnit::ClockTimer(const uint8_t ModePeriodRegister)
+void APU::NoiseUnit::ClockTimer()
 {
     if (mTimer == 0)
     {
-        uint8_t TimerIndex = ModePeriodRegister & static_cast<uint8_t>(ENOISE_MODE_PERIOD_MASKS::NOISE_PERIOD);
-        mTimer = mNoiseTimerLUT[TimerIndex];
+        mTimer = mTimerLength;
 
-        ClockSequencer(ModePeriodRegister);
+        ClockSequencer();
     }
     else
     {
@@ -810,10 +772,9 @@ void APU::NoiseUnit::ClockTimer(const uint8_t ModePeriodRegister)
     }
 }
 
-void APU::NoiseUnit::ClockLengthCounter(const uint8_t EnvelopeRegister)
+void APU::NoiseUnit::ClockLengthCounter()
 {
-    bool bHalt = (EnvelopeRegister & static_cast<uint8_t>(ENOISE_ENVELOPE_MASKS::ENVELOPE_LOOP_LENGTH_COUNTER_HALT)) != 0;
-    if (bHalt)
+    if (mbLengthCounterHalt)
         return;
 
     if (mLengthCounter > 0)
@@ -822,11 +783,10 @@ void APU::NoiseUnit::ClockLengthCounter(const uint8_t EnvelopeRegister)
     }
 }
 
-void APU::NoiseUnit::ClockSequencer(const uint8_t ModePeriodRegister)
+void APU::NoiseUnit::ClockSequencer()
 {
-    bool bMode = (ModePeriodRegister & static_cast<uint8_t>(ENOISE_MODE_PERIOD_MASKS::NOISE_MODE)) != 0;
     bool bBit0 = mLFSR & 0b1;
-    bool bBit1 = bMode ? (mLFSR & 0b01000000) >> 6 : (mLFSR & 0b10) >> 1;
+    bool bBit1 = mbMode ? (mLFSR & 0b01000000) >> 6 : (mLFSR & 0b10) >> 1;
 
     bool bFeedback = bBit0 ^ bBit1;
     mLFSR = mLFSR >> 1;
