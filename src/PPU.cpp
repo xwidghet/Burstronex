@@ -45,9 +45,6 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataP
 
 	mbIsVBlank = false;
 
-	mbOldNMIState = false;
-	mbNMIOutputFlag = false;
-
 	mRAM = RAM;
 	mRenderer = RendererPtr;
 	mRomData = RomDataPtr;
@@ -114,9 +111,6 @@ void PPU::ExecuteScanlineLogic()
 			mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
 			mbIsVBlank = true;
 			mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-
-			if (bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0)
-				mbNMIOutputFlag = true;
 
 			// Upload data to GPU for rendering
 			mRenderer->CopyPPUMemory(mPPUCTRL, mBackgroundDrawData, mChrMemory, mMemory, mPalleteMemory, mObjectAttributeMemory);
@@ -383,7 +377,7 @@ void PPU::PrepareNextStrip()
 				}
 			}
 
-			uint16_t BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
+			uint16_t BackgroundPatternTableAddress = 0x1000 * ((mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::BACKGROUND_PATTERN_ADDRESS)) != 0);
 
 			switch ((mCurrentDot-1) & 7)
 			{
@@ -392,6 +386,7 @@ void PPU::PrepareNextStrip()
 					mShiftRegisters.mPatternHigh = (mShiftRegisters.mPatternHigh & 0xFF00) | mPreparedStrip.mPatternHigh;
 					mShiftRegisters.mAttributeLow = (mShiftRegisters.mAttributeLow & 0xFF00) | ((mPreparedStrip.mAttribute & 1) == 1 ? 0xFF : 0);
 					mShiftRegisters.mAttributeHigh = (mShiftRegisters.mAttributeHigh & 0xFF00) | ((mPreparedStrip.mAttribute & 2) == 2 ? 0xFF : 0);
+
 
 					mStripAddress = (0x2000 + (mRegisters.v & 0x0FFF));
 					mStripDataTemp = ReadPPUMemory(mStripAddress);
@@ -622,27 +617,15 @@ void PPU::ResetScrollX()
 
 bool PPU::ReadNMIOutput()
 {
-	bool bIsNMIEnabled = mbNMIOutputFlag;
-	if (mbNMIOutputFlag)
-	{
-		mbNMIOutputFlag = false;
-	}
+	bool bIsNMIEnabled = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
 
-	return bIsNMIEnabled;
+	return bIsNMIEnabled && mbIsVBlank;
 }
 
 void PPU::WritePPUCTRL(const uint8_t Data)
 {
 	if (mClockCount < REGISTER_IGNORE_CYCLES)
 		return;
-
-	bool bOldShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
-	bool bNewShouldTriggerNMI = (Data & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
-
-	if (bOldShouldTriggerNMI == false && bNewShouldTriggerNMI == true && mbIsVBlank)
-	{
-		mbNMIOutputFlag = true;
-	}
 
 	mPPUCTRL = Data;
 }
@@ -656,7 +639,6 @@ uint8_t PPU::ReadPPUSTATUS()
 
 	mPPUSTATUS &= (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
 	mbIsVBlank = false;
-	mbNMIOutputFlag = false;
 	ClearWRegister();
 
 	mPPUStatistics.mStatusCallsSinceVBlank++;

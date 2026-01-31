@@ -68,6 +68,7 @@ class CPU {
 
     bool mbFrameCounterIRQTriggered = false;
     bool mbDMCIRQTriggered = false;
+    bool mbNMILevel = false;
 
     MemoryMapper* mMemoryMapper;
 

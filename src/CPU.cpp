@@ -133,7 +133,9 @@ uint8_t CPU::ExecuteNextInstruction()
     }
 
     // Non-Maskable Interrupts cannot be ignored by the CPU
-    if (mPPU->ReadNMIOutput())
+    bool bOldNMILevel = mbNMILevel;
+    mbNMILevel = mPPU->ReadNMIOutput();
+    if (!bOldNMILevel && mbNMILevel)
     {
         TriggerInterrupt();
 
