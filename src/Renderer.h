@@ -39,10 +39,12 @@ class Renderer {
 
         GLint mPPUCTRL;
         std::array<GLint, 16384> mPPUMemory;
+        std::array<GLint, 61696> mBackgroundDrawData;
+        std::array<GLint, 8192> mChrMemory;
         std::array<GLint, 32> mPalleteMemory;
         std::array<GLint, 256> mObjectAttributeMemory;
 
-        const uint32_t Size = (1 + 16384 + 32 + 256) * sizeof(GLint);
+        const uint32_t Size = (1 + 16384 + 61696 + 8192 + 32 + 256) * sizeof(GLint);
     } mSharedPPUMemory;
 
 public:
@@ -62,7 +64,7 @@ public:
     uint8_t GetController2();
 
     // Thread Safe
-    void CopyPPUMemory(const uint8_t PPUCTRL, const std::array<uint8_t, 16384>& PPUMemory, const std::array<uint8_t, 32>& PalleteMemory, const std::array<uint8_t, 256>& ObjectAttributeMemory);
+    void CopyPPUMemory(const uint8_t PPUCTRL, const std::array<uint16_t, 61696>& BackgroundDrawData, const std::array<uint8_t, 8192>& ChrMemory, const std::array<uint8_t, 16384>& PPUMemory, const std::array<uint8_t, 32>& PalleteMemory, const std::array<uint8_t, 256>& ObjectAttributeMemory);
 
 private:
     void InitDrawData();

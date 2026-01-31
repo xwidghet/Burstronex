@@ -6,6 +6,8 @@ layout(std430, binding = 0) buffer PPUMemory
 {
 	int mPPUCTRL;
 	int mPPUMemory[16384];
+	int mBackgroundDrawData[61696];
+	int mChrMemory[8192];
 	int mPalleteMemory[32];
 	int mObjectAttributeMemory[256];
 };
@@ -29,8 +31,8 @@ void main()
 	int YPixel = int(PatternCoordinates.y * 128.0) % 8;
 
 	// Each Tile is 16 Bytes, where X coordinate is in the bits stored accross two bytes.
-	int Byte0 = mPPUMemory[TileCorner + YPixel];
-	int Byte1 = mPPUMemory[TileCorner + YPixel + 8];
+	int Byte0 = mChrMemory[TileCorner + YPixel];
+	int Byte1 = mChrMemory[TileCorner + YPixel + 8];
 
 	// Read specific pixel in this tile.
 	// Pixels are stored in reverse bit order.

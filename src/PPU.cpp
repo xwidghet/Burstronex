@@ -11,8 +11,10 @@
 PPU::PPU()
 {
 	mMemory = {};
+	mChrMemory = {};
 	mPalleteMemory = {};
 	mObjectAttributeMemory = {};
+	mBackgroundDrawData = {};
 
 	mMemoryMap = std::array<std::pair<uint16_t, uint16_t>, 13>{{
 		{0x0000, 0x1000},
@@ -46,7 +48,6 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataP
 	mPPUSTATUS = 0;
 	mOAMADDR = 0;
 	mPPUSCROLL = 0;
-	mPPUADDR = 0;
 
 	mPPUDataReadBuffer = 0;
 
@@ -59,8 +60,6 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataP
 	mbOldNMIState = false;
 	mbNMIOutputFlag = false;
 
-	mbPostFirstPreRenderScanline = false;
-
 	mRAM = RAM;
 	mRenderer = RendererPtr;
 	mRomData = RomDataPtr;
@@ -69,7 +68,8 @@ void PPU::Init(MemoryMapper* RAM, Renderer* RendererPtr, const ROMData* RomDataP
 
 	// Loading CHR into the pattern table range (0x0000 - 0x1FFF)
 	// Will need to rework this when Bank Switching is implemented.
-	std::memcpy(mMemory.data(), RomDataPtr->ChrRomMemory.data(), RomDataPtr->ChrRomMemory.size());
+	std::memcpy(mChrMemory.data(), RomDataPtr->ChrRomMemory.data(), RomDataPtr->ChrRomMemory.size());
+
 }
 
 void PPU::Execute(const uint8_t CPUCycles)
@@ -87,33 +87,9 @@ void PPU::ExecuteCycle()
 {
 	// Should take effect 4 dots or more after write, otherwise a crash may occur.
 	bool bIsRenderingEnabled = (mPPUMASK & PPUMASK_RENDERING_MASK) != 0;
-	bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0;
 
-	if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first && mCurrentDot == 1)
-	{
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
-		mbIsVBlank = true;
-		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-
-		if (bShouldTriggerNMI)
-			mbNMIOutputFlag = true;
-
-		// Upload data to GPU for rendering
-		mRenderer->CopyPPUMemory(mPPUCTRL, mMemory, mPalleteMemory, mObjectAttributeMemory);
-	}
-	else if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE && mCurrentDot == 1)
-	{
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Exit VBlank phase!!\n");
-		mbIsVBlank = false;
-		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
-		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
-		mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::SPRITE_OVERFLOW_FLAG);
-	}
-
-	if (mCurrentScanline <= VISIBLE_SCANLINE_RANGE.second)
-	{
-		ExecuteRendering(bIsRenderingEnabled);
-	}
+	ExecuteScanlineLogic();
+	ExecuteDotLogic(bIsRenderingEnabled);
 
 	uint16_t LastFrameCycle = ENDING_FETCH_PHASE_CYCLES.second;
 	bool bIsLastScanline = mCurrentScanline == PPU_PRE_RENDER_SCANLINE;
@@ -135,24 +111,280 @@ void PPU::ExecuteCycle()
 			mCurrentScanline = 0;
 			mbIsEvenFrame = !mbIsEvenFrame;
 		}
-
-		if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE)
-		{
-			mbPostFirstPreRenderScanline = true;
-		}
 	}
 
 	mClockCount++;
 }
 
+void PPU::ExecuteScanlineLogic()
+{
+	// Technically this occurs on dot 0, but the effects are delayed to dot 1.
+	if (const bool bScanlineTransitioned = mCurrentDot == 1)
+	{
+		if (mCurrentScanline == VBLANK_SCANLINE_RANGE.first)
+		{
+			mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Entered VBlank phase!!\n");
+			mbIsVBlank = true;
+			mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
+
+			if (bool bShouldTriggerNMI = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VBLANK_NMI_ENABLE)) != 0)
+				mbNMIOutputFlag = true;
+
+			// Upload data to GPU for rendering
+			mRenderer->CopyPPUMemory(mPPUCTRL, mBackgroundDrawData, mChrMemory, mMemory, mPalleteMemory, mObjectAttributeMemory);
+		}
+		else if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE)
+		{
+			mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "PPU: Exit VBlank phase!!\n");
+			mbIsVBlank = false;
+			mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG);
+			mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+			mPPUSTATUS &= ~static_cast<uint8_t>(EPPUSTATUS::SPRITE_OVERFLOW_FLAG);
+		}
+	}
+}
+
+void PPU::ExecuteDotLogic(const bool bIsRenderingEnabled)
+{
+	if (mCurrentDot == IDLE_PHASE_CYCLE)
+		return;
+
+	if (IsInScanlineRange(VISIBLE_SCANLINE_RANGE) || (mCurrentScanline == PPU_PRE_RENDER_SCANLINE))
+	{
+		PrepareNextStrip();
+	}
+
+	if (mCurrentScanline <= VISIBLE_SCANLINE_RANGE.second)
+	{
+		ExecuteRendering(bIsRenderingEnabled);
+	}
+}
+
+void PPU::PrepareNextStrip()
+{
+	if (IsInDotRange(TILE_FETCH_PHASE_CYCLES) || IsInDotRange(NEXT_SCANLINE_FIRST_TWO_TILES_FETCH_PHASE_CYCLES))
+	{
+		bool bBackgroundRendering = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_BACKGROUND_RENDERING)) != 0;
+		bool bRenderSprites = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_SPRITE_RENDERING)) != 0;
+
+		if (bBackgroundRendering || bRenderSprites)
+		{
+			if (bBackgroundRendering)
+			{
+				mShiftRegisters.mPatternLow <<= 1;
+				mShiftRegisters.mPatternHigh <<= 1;
+				mShiftRegisters.mAttributeLow <<= 1;
+				mShiftRegisters.mAttributeHigh <<= 1;
+			}
+
+			uint16_t BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
+
+			switch ((mCurrentDot-1) & 7)
+			{
+				case 0:
+					mShiftRegisters.mPatternLow = (mShiftRegisters.mPatternLow & 0xFF00) | mPreparedStrip.mPatternLow;
+					mShiftRegisters.mPatternHigh = (mShiftRegisters.mPatternHigh & 0xFF00) | mPreparedStrip.mPatternHigh;
+					mShiftRegisters.mAttributeLow = (mShiftRegisters.mAttributeLow & 0xFF00) | ((mPreparedStrip.mAttribute & 1) == 1 ? 0xFF : 0);
+					mShiftRegisters.mAttributeHigh = (mShiftRegisters.mAttributeHigh & 0xFF00) | ((mPreparedStrip.mAttribute & 2) == 2 ? 0xFF : 0);
+
+					mStripAddress = (0x2000 + (mRegisters.v & 0x0FFF));
+					mStripDataTemp = ReadPPUMemory(mStripAddress);
+					break;
+				case 1:
+					mStripDataNext = mStripDataTemp;
+					break;
+				case 2:
+					mStripAddress = ((0x23C0 | (mRegisters.v & 0x0C00) | ((mRegisters.v >> 4) & 0x38) | ((mRegisters.v  >> 2) & 0x07)));
+					mStripDataTemp = ReadPPUMemory(mStripAddress);
+					break;
+				case 3:
+					mPreparedStrip.mAttribute = mStripDataTemp;
+
+					// Right Tile
+					if ((mRegisters.v & 3) >= 2)
+					{
+						mPreparedStrip.mAttribute >>= 2;
+					}
+					// Bottom Tile
+					if ((((mRegisters.v & 0b0000001111100000) >> 5) & 3) >= 2)
+					{
+						mPreparedStrip.mAttribute >>= 4;
+					}
+					mPreparedStrip.mAttribute &= 3;
+					break;
+				case 4:
+					mStripAddress = (((mRegisters.v & 0b0111000000000000) >> 12) | (mStripDataNext*16) | (BackgroundPatternTableAddress));
+					mStripDataTemp = ReadPPUMemory(mStripAddress);
+					break;
+				case 5:
+					mPreparedStrip.mPatternLow = mStripDataTemp;
+					mStripAddress += 8;
+					break;
+				case 6:
+					mStripDataTemp = ReadPPUMemory(mStripAddress);
+					break;
+				case 7:
+					mPreparedStrip.mPatternHigh = mStripDataTemp;
+
+					// If we've exited the current nametable block
+					if ((mRegisters.v & 0x001F) == 31)
+					{
+						// Reset Scroll
+						mRegisters.v &= 0xFFE0;
+
+						// Jump Nametable
+						mRegisters.v ^= 0x0400;
+					}
+					else
+					{
+						mRegisters.v++;
+					}
+					break;
+			}
+		}
+	}
+}
+
 void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 {
-	// Hack until Sprite 0 hit is implemented, where the PPU checks if an opaque pixel of a sprite overlaps an opaque pixel of a background.
-	// Which I imagine I can basically copy paste from my shader.
 	if (bIsRenderingEnabled)
 	{
+		// Hack until Sprite 0 hit is implemented, where the PPU checks if an opaque pixel of a sprite overlaps an opaque pixel of a background.
+		// Which I imagine I can basically copy paste from my shader.
 		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+
+		if (IsInDotRange(INCREMENT_V_SCANLINE_DOT))
+		{
+			IncrementScrollY();
+		}
+		else if (IsInDotRange(COPY_T_TO_V_HPOS_SCANLINE_DOT))
+		{
+			ResetScrollX();
+		}
+		if (IsInDotRange(COPY_T_TO_V_VPOS_SCANLINE_DOT_RANGE) && (mCurrentScanline == PPU_PRE_RENDER_SCANLINE))
+		{
+			ResetScrollY();
+		}
 	}
+
+	if ((mCurrentScanline < VBLANK_SCANLINE_RANGE.first) && IsInDotRange(TILE_FETCH_PHASE_CYCLES))
+	{
+		uint8_t PalleteLow = 0;
+		uint8_t PalleteHigh = 0;
+
+		bool bRenderBackground = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_BACKGROUND_RENDERING)) != 0;
+		bool bRenderBackgroundL8Px = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::BACKGROUND_LEFTMOST_8PX)) != 0;
+		if (bRenderBackground && (mCurrentDot > 8 || bRenderBackgroundL8Px))
+		{
+			uint8_t Column0 = ((mShiftRegisters.mPatternLow >> (15 - mRegisters.x)) & 1);
+			uint8_t Column1 = ((mShiftRegisters.mPatternHigh >> (15 - mRegisters.x)) & 1);
+			PalleteLow = (Column1 << 1) | Column0;
+
+			uint8_t Pallete0 = ((mShiftRegisters.mAttributeLow >> (15 - mRegisters.x)) & 1);
+			uint8_t Pallete1 = ((mShiftRegisters.mAttributeHigh >> (15 - mRegisters.x)) & 1);
+			PalleteHigh = (Pallete1 << 1) | Pallete0;
+
+			// Index 0 of all color palletes is a mirror of the background color which is the first color.
+			if ((PalleteLow == 0) && (PalleteHigh != 0))
+			{
+				PalleteHigh = 0;
+			}
+		}
+
+		// Shove into array, copy to GPU, and should be able to directly read this -> Read pallete color
+		// May need attributes, but I guess if the tile is 0, we know it's a transparent tile pixel?
+		// Since this is 4 bits I could shove it into one, but for simplicity for now I'll leave the variables packed into uint16_t
+		int32_t X = mCurrentDot-1;
+		int32_t Y = int32_t(mCurrentScanline)*256;
+		int32_t WritePos = X + Y;
+
+		mBackgroundDrawData[WritePos] = (uint16_t(PalleteHigh) << 8) | uint16_t(PalleteLow);
+	}
+}
+
+bool PPU::IsInScanlineRange(const std::pair<uint16_t, uint16_t>& Range) const
+{
+	return (mCurrentScanline >= Range.first) && (mCurrentScanline <= Range.second);
+}
+
+bool PPU::IsInDotRange(const std::pair<uint16_t, uint16_t>& Range) const
+{
+	return (mCurrentDot >= Range.first) && (mCurrentDot <= Range.second);
+}
+
+uint8_t PPU::ReadPPUMemory(uint16_t Address)
+{
+	if (Address < 0x2000)
+	{
+		return mChrMemory[Address];
+	}
+	else if (Address < 0x3F00)
+	{
+		if (mRomData->NameTableLayout == ENameTableLayout::Horizontal)
+		{
+			return mMemory[(Address & 0x3FF) | (Address & 0x800) >> 1];
+		}
+		else
+		{
+			return mMemory[Address & 0x7FF];
+		}
+	}
+	else
+	{
+		uint16_t PalleteMask = (Address & 3) == 0 ? 0x0F : 0x1F;
+		return mPalleteMemory[Address & PalleteMask];
+	}
+}
+
+void PPU::IncrementScrollY()
+{
+	if ((mRegisters.v & 0x7000) != 0x7000)
+	{
+		mRegisters.v += 0x1000;
+	}
+	else
+	{
+		mRegisters.v &= 0x0FFF;
+		uint16_t Y = (mRegisters.v & 0x03E0) >> 5;
+		if (Y == 29)
+		{
+			Y = 0;
+			mRegisters.v ^= 0x0800;
+		}
+		else
+		{
+			Y++;
+			Y &= 0x1F;
+		}
+
+		mRegisters.v = ((mRegisters.v & 0xFC1F) | (Y << 5));
+	}
+}
+
+void PPU::ResetScrollY()
+{
+	mRegisters.v = (mRegisters.v & 0b0000010000011111) | (mRegisters.t & 0b0111101111100000);
+}
+
+void PPU::IncrementScrollX()
+{
+	// Handled in case 7 of PrepareNextStrip
+	// However I feel like the cycle timing doesn't match the documentation.
+	/*'
+	if ((mRegisters.v & 0x001F) == 31)
+	{
+		mRegisters.v &= ~0x001F;          // coarse X = 0
+		mRegisters.v ^= 0x0400;           // switch horizontal nametable
+	}
+	else
+	{
+		mRegisters.v += 1;
+	}*/
+}
+
+void PPU::ResetScrollX()
+{
+	mRegisters.v = (mRegisters.v & 0b0111101111100000) | (mRegisters.t & 0b0000010000011111);
 }
 
 bool PPU::ReadNMIOutput()
@@ -187,19 +419,13 @@ uint8_t PPU::ReadPPUSTATUS()
 	uint8_t Value = mPPUSTATUS;
 
 	//if (mPPUSTATUS != 0x40)
-		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::VERBOSE, "CPU Read Status with VBlank! {0:X}\n", mPPUSTATUS);
+		mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU Read Status with VBlank! {0:X}\n", mPPUSTATUS);
 
 	mPPUSTATUS &= (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
 	mbIsVBlank = false;
 	ClearWRegister();
 
 	return Value;
-}
-
-uint8_t PPU::ReadOAMDATA()
-{
-	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU Read PPU OAM DATA! {0:X}, {1:X}\n", mPPUADDR, mObjectAttributeMemory[mOAMADDR]);
-	return mObjectAttributeMemory[mOAMADDR];
 }
 
 void PPU::WriteOAMADDR(const uint8_t Data)
@@ -209,11 +435,17 @@ void PPU::WriteOAMADDR(const uint8_t Data)
 }
 
 
+uint8_t PPU::ReadOAMDATA()
+{
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU Read PPU OAM DATA! {0:X}, {1:X}\n", mRegisters.v, mObjectAttributeMemory[mOAMADDR]);
+	return mObjectAttributeMemory[mOAMADDR];
+}
+
 void PPU::WriteOAMDATA(const uint8_t Data)
 {
 	mObjectAttributeMemory[mOAMADDR] = Data;
 
-	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU OAM DATA! {0:X}, {1:X}\n", mPPUADDR, Data);
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU OAM DATA! {0:X}, {1:X}\n", mRegisters.v, Data);
 	mOAMADDR++;
 }
 
@@ -228,6 +460,25 @@ void PPU::WriteOAMDMA(const uint8_t Data)
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU OAM DMA! {0:X}\n", MemoryAddress);
 }
 
+void PPU::WritePPUSCROLL(const uint8_t Data)
+{
+	if (mClockCount < REGISTER_IGNORE_CYCLES)
+		return;
+
+	// High first, low second
+	if (!mRegisters.w)
+	{
+		mRegisters.x = Data & 7;
+		mTempTransferAddress = uint16_t(mTempTransferAddress & 0b0111111111100000) | (Data >> 3);
+	}
+	else
+	{
+		mRegisters.t = uint16_t(mTempTransferAddress & 0b0000110000011111) | (((Data & 0xF8) << 2) | (uint16_t(Data & 7) << 12));
+	}
+
+	ToggleWRegister();
+}
+
 void PPU::WritePPUADDR(const uint8_t Data)
 {
 	if (mClockCount < REGISTER_IGNORE_CYCLES)
@@ -236,15 +487,15 @@ void PPU::WritePPUADDR(const uint8_t Data)
 	// High first, low second
 	if (!mRegisters.w)
 	{
-		mNextPPUADDR = uint16_t(Data << 8);
+		mTempTransferAddress = uint16_t((Data & 0x3F) << 8);
 	}
 	else
 	{
-		mPPUADDR = (mNextPPUADDR | Data);
-		mRegisters.t = mPPUADDR;
+		mRegisters.v = (mTempTransferAddress | Data);
+		mRegisters.t = mRegisters.v;
 	}
 
-	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Address! {0:X}\n", mPPUADDR);
+	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Address! {0:X}\n", Data);
 
 	ToggleWRegister();
 }
@@ -253,31 +504,13 @@ uint8_t PPU::ReadPPUData()
 {
 	uint8_t OldBufferData = mPPUDataReadBuffer;
 
-	if (mPPUADDR < 0x2000)
+	if (mRegisters.v > 0x3F00)
 	{
-		mPPUDataReadBuffer = mMemory[mPPUADDR];
-	}
-	else if (mPPUADDR < 0x3F00)
-	{
-		if (mRomData->NameTableLayout == ENameTableLayout::Horizontal)
-		{
-			uint16_t Temp = (mPPUADDR & 0x3FF) | (mPPUADDR & 0x800) >> 1;
-			Temp += 0x2000;
-
-			mPPUDataReadBuffer = mMemory[Temp];
-		}
-		else
-		{
-			uint16_t Temp = mPPUADDR & 0x7FF;
-			Temp += 0x2000;
-
-			mPPUDataReadBuffer = mMemory[Temp];
-		}
+		OldBufferData = ReadPPUMemory(mRegisters.v);
 	}
 	else
 	{
-		uint16_t PalleteMask = (mPPUADDR & 3) == 0 ? 0x0F : 0x1F;
-		mPPUDataReadBuffer = mPalleteMemory[mPPUADDR & PalleteMask];
+		mPPUDataReadBuffer = ReadPPUMemory(mRegisters.v);
 	}
 
 	bool bIncrement32Mode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
@@ -287,43 +520,41 @@ uint8_t PPU::ReadPPUData()
 
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU read PPU Data! {0}\n", Offset);
 
-	// PPUADDR is limited to 14 bits.
-	mPPUADDR += Offset;
-	mPPUADDR &= 0x3FFF;
+	// VRAM Address is limited to 14 bits.
+	mRegisters.v += Offset;
+	mRegisters.v &= 0x3FFF;
 
 	return OldBufferData;
 }
 
 void PPU::WritePPUData(const uint8_t Data)
 {
-	if (mPPUADDR < 0x2000)
+	if (mRegisters.v < 0x2000)
 	{
 		if (mRomData->ChrRomMemory.size() == 0)
 		{
-			mMemory[mPPUADDR] = Data;
+			mChrMemory[mRegisters.v] = Data;
 		}
 	}
-	else if (mPPUADDR < 0x3F00)
+	else if (mRegisters.v < 0x3F00)
 	{
 		if (mRomData->NameTableLayout == ENameTableLayout::Horizontal)
 		{
-			uint16_t Temp = (mPPUADDR & 0x3FF) | (mPPUADDR & 0x800) >> 1;
-			Temp += 0x2000;
+			uint16_t Temp = (mRegisters.v & 0x3FF) | (mRegisters.v & 0x800) >> 1;
 
 			mMemory[Temp] = Data;
 		}
 		else
 		{
-			uint16_t Temp = mPPUADDR & 0x7FF;
-			Temp += 0x2000;
+			uint16_t Temp = mRegisters.v & 0x7FF;
 
 			mMemory[Temp] = Data;
 		}
 	}
 	else
 	{
-		uint16_t PalleteMask = (mPPUADDR & 3) == 0 ? 0x0F : 0x1F;
-		mPalleteMemory[mPPUADDR & PalleteMask] = Data;
+		uint16_t PalleteMask = (mRegisters.v & 3) == 0 ? 0x0F : 0x1F;
+		mPalleteMemory[mRegisters.v & PalleteMask] = Data;
 	}
 
 	bool bIncrement32Mode = (mPPUCTRL & static_cast<uint8_t>(EPPUCTRL::VRAM_ADDRESS_INCREMENT)) != 0;
@@ -333,18 +564,9 @@ void PPU::WritePPUData(const uint8_t Data)
 
 	mLog->Log(ELOGGING_SOURCES::PPU, ELOGGING_MODE::INFO, "CPU wrote PPU Data! {0}\n", Offset);
 
-	// PPUADDR is limited to 14 bits.
-	mPPUADDR += Offset;
-	mPPUADDR &= 0x3FFF;
-}
-
-void PPU::WritePPUSCROLL(const uint8_t Data)
-{
-	if (mClockCount < REGISTER_IGNORE_CYCLES)
-		return;
-
-	mPPUSCROLL = Data;
-	ToggleWRegister();
+	// VRAM Address is limited to 14 bits.
+	mRegisters.v += Offset;
+	mRegisters.v &= 0x3FFF;
 }
 
 void PPU::WritePPUMASK(const uint8_t Data)

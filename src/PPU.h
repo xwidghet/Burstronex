@@ -46,10 +46,10 @@ static const std::pair<uint16_t, uint16_t> VBLANK_SCANLINE_RANGE = {241, 260};
 static const uint16_t PPU_PRE_RENDER_SCANLINE = 261;
 
 // If Rendering is enabled
-static const uint16_t INCREMENT_V_SCANLINE_DOT = 256;
+static const std::pair<uint16_t, uint16_t> INCREMENT_V_SCANLINE_DOT = {256, 256};
 
 // If Rendering is enabled, copies all horizontal position bits from register t to register v.
-static const uint16_t COPY_T_TO_V_HPOS_SCANLINE_DOT = 257;
+static const std::pair<uint16_t, uint16_t> COPY_T_TO_V_HPOS_SCANLINE_DOT = {257, 257};
 
 // If Rendering is enabled,
 // Shortly after VBLANK and the horizontal bits have been copied from t to v at dot 257,
@@ -278,7 +278,6 @@ enum class EOAMDMA {
 // Times three to avoid needing to read CPU clock count.
 const uint32_t REGISTER_IGNORE_CYCLES = 29658 * 3;
 
-
 class PPU {
 	struct PPUREGISTERS {
 		// During Rendering, used for scroll position.
@@ -301,15 +300,32 @@ class PPU {
 		bool w;
 	} mRegisters;
 
-	// Registers memory mapped to CPU RAM
-	uint8_t mPPUCTRL;
-	uint8_t mPPUMASK;
-	uint8_t mPPUSTATUS;
-	uint8_t mOAMADDR;
-	uint8_t mPPUSCROLL;
-	uint16_t mPPUADDR;
+	struct PPUShiftRegisters {
+		uint16_t mPatternLow = 0;
+		uint16_t mPatternHigh = 0;
+		uint16_t mAttributeLow = 0;
+		uint16_t mAttributeHigh = 0;
+	} mShiftRegisters;
 
-	uint16_t mNextPPUADDR = 0;
+	struct StripData {
+		uint8_t mPatternLow = 0;
+		uint8_t mPatternHigh = 0;
+		uint8_t mAttribute = 0;
+	} mPreparedStrip;
+
+	uint16_t mStripAddress = 0;
+	uint8_t mStripDataTemp = 0;
+	uint8_t mStripDataNext = 0;
+
+	// Registers memory mapped to CPU RAM
+	uint8_t mPPUCTRL = 0;
+	uint8_t mPPUMASK = 0;
+	uint8_t mPPUSTATUS = 0;
+	uint8_t mOAMADDR = 0;
+	uint8_t mPPUSCROLL = 0;
+	uint16_t mPPUADDR = 0;
+
+	uint16_t mTempTransferAddress = 0;
 
 	uint8_t mPPUDataReadBuffer = 0;
 
@@ -319,6 +335,8 @@ class PPU {
 	// 0x3000 - 0x3EFF - mirror of 0x2000 - 0x2FFF. PPU doesn't render from this address range.
 	// 0x3F00 - 0x3FFF - Not configurable, mapped to internal pallete control.
 	std::array<uint8_t, 16384> mMemory;
+
+	std::array<uint8_t, 8192> mChrMemory;
 
 	// 4 Palletes, first 16 are background tiles, while last 16 are sprites.
 	// Entry 0 of pallete 0 is the backdrop color.
@@ -363,6 +381,10 @@ class PPU {
 	// All 12 memory regions stored (Address Begin, size)
 	std::array<std::pair<uint16_t, uint16_t>, 13> mMemoryMap;
 
+	// Pallete data of the Background so the GPU can render scrolling
+	// Size is 256*241 pixels of data
+	std::array<uint16_t, 61696> mBackgroundDrawData;
+
 	uint16_t mCurrentScanline = PPU_PRE_RENDER_SCANLINE;
 	uint16_t mCurrentDot = 0;
 
@@ -375,8 +397,6 @@ class PPU {
 	bool mbOldNMIState = false;
 
 	bool mbIsVBlank = false;
-
-	bool mbPostFirstPreRenderScanline = false;
 
 	uint64_t mClockCount = 0;
 
@@ -392,7 +412,27 @@ class PPU {
 
 	void ExecuteCycle();
 
+	void ExecuteScanlineLogic();
+
+	void ExecuteDotLogic(const bool bIsRenderingEnabled);
+
+	void PrepareNextStrip();
+
 	void ExecuteRendering(const bool bIsRenderingEnabled);
+
+	bool IsInScanlineRange(const std::pair<uint16_t, uint16_t>& Range) const;
+
+	bool IsInDotRange(const std::pair<uint16_t, uint16_t>& Range) const;
+
+	uint8_t ReadPPUMemory(uint16_t Address);
+
+	void IncrementScrollY();
+
+	void ResetScrollY();
+
+	void IncrementScrollX();
+
+	void ResetScrollX();
 
 public:
 	PPU();
@@ -407,21 +447,21 @@ public:
 
 	uint8_t ReadPPUSTATUS();
 
-	uint8_t ReadOAMDATA();
-
 	void WriteOAMADDR(const uint8_t Data);
+
+	uint8_t ReadOAMDATA();
 
 	void WriteOAMDATA(const uint8_t Data);
 
 	void WriteOAMDMA(const uint8_t Data);
+
+	void WritePPUSCROLL(const uint8_t Data);
 
 	void WritePPUADDR(const uint8_t Data);
 
 	uint8_t ReadPPUData();
 
 	void WritePPUData(const uint8_t Data);
-
-	void WritePPUSCROLL(const uint8_t Data);
 
 	void WritePPUMASK(const uint8_t Data);
 

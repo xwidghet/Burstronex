@@ -8,7 +8,7 @@ void main()
 	QuadCoordinate = vec2(Pos.x, 1.0 - Pos.y);
 
 	// Vertically center the video output with the vblank portions removed.
-	//QuadCoordinate.y -= 0.5/32.0;
+	QuadCoordinate.y -= 0.5/32.0;
 
 	// Full-screen quad.
 	vec2 DrawPosition = (Pos.xy*2.0) - 1.0;

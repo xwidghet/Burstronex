@@ -7,7 +7,6 @@ layout(std430, binding = 0) buffer PPUMemory
 	int mPPUCTRL;
 	int mPPUMemory[16384];
 	int mBackgroundDrawData[61696];
-	int mChrMemory[8192];
 	int mPalleteMemory[32];
 	int mObjectAttributeMemory[256];
 };
@@ -19,7 +18,7 @@ const float mPallete[] = {
 
 bool RenderSprite(vec2 QuadCoordinate, int SpritePatternTableAddress, out int SpriteAttributes, out int SpriteTileData)
 {
-	ivec2 ScanlinePos = ivec2(int(QuadCoordinate.x * 256.0), int(QuadCoordinate.y * 240.0));
+	ivec2 ScanlinePos = ivec2(int(QuadCoordinate.x * 256.0), int(QuadCoordinate.y * 256.0));
 	ScanlinePos.y -= 1;
 
 	// 0: 8x8, 1: 8x16
@@ -78,8 +77,8 @@ bool RenderSprite(vec2 QuadCoordinate, int SpritePatternTableAddress, out int Sp
 		}
 
 		// Update Attributes/Pallete
-		int PatternByte0 = mChrMemory[SpritePatternTableOffset + SpriteTileNumber*16 + PixelInSpritePos.y];
-		int PatternByte1 = mChrMemory[SpritePatternTableOffset + SpriteTileNumber*16 + PixelInSpritePos.y + 8];
+		int PatternByte0 = mPPUMemory[SpritePatternTableOffset + SpriteTileNumber*16 + PixelInSpritePos.y];
+		int PatternByte1 = mPPUMemory[SpritePatternTableOffset + SpriteTileNumber*16 + PixelInSpritePos.y + 8];
 
 		SpriteTileData = ((PatternByte0 >> PixelInSpritePos.x) & 1);
 		SpriteTileData |= ((PatternByte1 >> PixelInSpritePos.x) & 1) << 1;
@@ -98,21 +97,50 @@ bool RenderSprite(vec2 QuadCoordinate, int SpritePatternTableAddress, out int Sp
 void main()
 {
 	// First two bits of PPUCTRL contain the offset.
+	int NameTableAddress = 0x2000 + 0x400 * (mPPUCTRL & 0x3);
 	int SpritePatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 3)) != 0);
+	int BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
 
-	ivec2 PixelPos = ivec2(QuadCoordinate.x*255, QuadCoordinate.y*240);
-	int DataIndex = PixelPos.x + PixelPos.y*256;
-	int DrawData = mBackgroundDrawData[DataIndex];
-	int Pallete = DrawData >> 8;
-	int PalleteOffset = DrawData & 0x00FF;
+	// 32x30 Grid, 1 byte per cell
+	// Why does making Y a 32 grid fix it? Is it the boundary area, and it's 30 with that removed??
+	const int NameCellX = int(QuadCoordinate.x * 32.0);
+	const int NameCellY = int(QuadCoordinate.y * 32.0);
 
-	int PalleteIndex = (Pallete*4 + PalleteOffset);
+	// Cells < 1 and 30+ are in the vblank area.
+	if (NameCellY < 1 || NameCellY > 29)
+		discard;
+
+	const int CellData = mPPUMemory[NameTableAddress + NameCellX + NameCellY*32];
+
+	int TileCorner = BackgroundPatternTableAddress + CellData*16;
+
+	// Get Tile Top Left Corner
+	int XPixel = int(QuadCoordinate.x * 256.0) & 7;
+	int YPixel = int(QuadCoordinate.y * 256.0) & 7;
+
+	// Each Tile is 16 Bytes, where X coordinate is in the bits stored accross two bytes.
+	int Byte0 = mPPUMemory[TileCorner + YPixel];
+	int Byte1 = mPPUMemory[TileCorner + YPixel + 8];
+
+	// Read specific pixel in this tile.
+	// Pixels are stored in reverse bit order.
+	int PixelIndex = 7 - XPixel;
+	int TileData = ((Byte0 >> PixelIndex) & 1) * 1;
+	TileData += ((Byte1 >> PixelIndex) & 1) * 2;
+
+	// Calculate Attributes
+	int AttributeOffset = (NameCellX >> 2) + (NameCellY >> 2)*8;
+	int AttributeTable = mPPUMemory[NameTableAddress + AttributeOffset + 0x3C0];
+	int AttributeCell = ((NameCellX & 2) + (NameCellY & 2)*2) >> 1;
+	int AttributeTileData = ((AttributeTable >> (AttributeCell << 1)) & 3);
+
+	int PalleteIndex = TileData > 0 ? (TileData + (AttributeTileData << 2)) : 0;
 
 	int SpriteAttributes = 0;
 	int SpritePatternData = 0;
 	if (RenderSprite(QuadCoordinate, SpritePatternTableAddress, SpriteAttributes, SpritePatternData))
 	{
-		bool bBackgroundIsOpaque = PalleteIndex > 0;
+		bool bBackgroundIsOpaque = TileData > 0;
 		bool bSpriteBehindBackground = (SpriteAttributes & 0x20) != 0;
 		bool bSkipSprite = ((bSpriteBehindBackground == true) && bBackgroundIsOpaque);
 		if (!bSkipSprite)
@@ -136,5 +164,4 @@ void main()
 	vec3 PalleteColor = vec3(mPallete[PalleteValue], mPallete[PalleteValue+1], mPallete[PalleteValue+2]);
 
 	FragColor = vec4(PalleteColor, 1.0);
-
 }

@@ -173,6 +173,14 @@ void Renderer::UpdateSharedPPUMemorySSBO()
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mPPUMemory.data());
     Offset += DataSize;
 
+    DataSize = 61696 * sizeof(GLint);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mBackgroundDrawData.data());
+    Offset += DataSize;
+
+    DataSize = 8192 * sizeof(GLint);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mChrMemory.data());
+    Offset += DataSize;
+
     DataSize = 32 * sizeof(GLint);
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, Offset, DataSize, mSharedPPUMemory.mPalleteMemory.data());
     Offset += DataSize;
@@ -354,12 +362,14 @@ uint8_t Renderer::GetController2()
     return mController2.load(std::memory_order_acquire);
 }
 
-void Renderer::CopyPPUMemory(const uint8_t PPUCTRL, const std::array<uint8_t, 16384>& PPUMemory, const std::array<uint8_t, 32>& PalleteMemory, const std::array<uint8_t, 256>& ObjectAttributeMemory)
+void Renderer::CopyPPUMemory(const uint8_t PPUCTRL, const std::array<uint16_t, 61696>& BackgroundDrawData, const std::array<uint8_t, 8192>& ChrMemory, const std::array<uint8_t, 16384>& PPUMemory, const std::array<uint8_t, 32>& PalleteMemory, const std::array<uint8_t, 256>& ObjectAttributeMemory)
 {
     std::lock_guard<std::mutex> lock(*mSharedPPUMemory.mMutex);
 
     mSharedPPUMemory.mPPUCTRL = PPUCTRL;
     std::copy(PPUMemory.begin(), PPUMemory.end(), mSharedPPUMemory.mPPUMemory.begin());
+    std::copy(BackgroundDrawData.begin(), BackgroundDrawData.end(), mSharedPPUMemory.mBackgroundDrawData.begin());
+    std::copy(ChrMemory.begin(), ChrMemory.end(), mSharedPPUMemory.mChrMemory.begin());
     std::copy(PalleteMemory.begin(), PalleteMemory.end(), mSharedPPUMemory.mPalleteMemory.begin());
     std::copy(ObjectAttributeMemory.begin(), ObjectAttributeMemory.end(), mSharedPPUMemory.mObjectAttributeMemory.begin());
 }
