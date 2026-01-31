@@ -144,10 +144,7 @@ void PPU::ExecuteDotLogic(const bool bIsRenderingEnabled)
 		PrepareNextStrip();
 	}
 
-	if (mCurrentScanline <= VISIBLE_SCANLINE_RANGE.second)
-	{
-		ExecuteRendering(bIsRenderingEnabled);
-	}
+	ExecuteRendering(bIsRenderingEnabled);
 }
 
 void PPU::SpriteEvaluation()
@@ -450,13 +447,16 @@ void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 {
 	if (bIsRenderingEnabled)
 	{
-		if (IsInDotRange(INCREMENT_V_SCANLINE_DOT))
+		if (IsInScanlineRange(VISIBLE_SCANLINE_RANGE))
 		{
-			IncrementScrollY();
-		}
-		else if (IsInDotRange(COPY_T_TO_V_HPOS_SCANLINE_DOT))
-		{
-			ResetScrollX();
+			if (IsInDotRange(INCREMENT_V_SCANLINE_DOT))
+			{
+				IncrementScrollY();
+			}
+			else if (IsInDotRange(COPY_T_TO_V_HPOS_SCANLINE_DOT))
+			{
+				ResetScrollX();
+			}
 		}
 		if (IsInDotRange(COPY_T_TO_V_VPOS_SCANLINE_DOT_RANGE) && (mCurrentScanline == PPU_PRE_RENDER_SCANLINE))
 		{
