@@ -11,10 +11,15 @@ struct APUStatistics {
     float mBufferFillPercentage = 0.f;
 };
 
+struct PPUStatistics {
+  int32_t mStatusCallsSinceVBlank = 0;
+};
+
 class StatisticsManager {
     struct Statistics {
         EmulationStatistics mEmulationStatistics;
         APUStatistics mAPUStatistics;
+        PPUStatistics mPPUStatistics;
     } mStatistics;
 
     std::mutex mMutex;
@@ -25,6 +30,9 @@ public:
 
     // Thread Safe
     void UpdateEmulationStatistics(const EmulationStatistics& EmulationStatistics);
+
+    // Thread Safe
+    void UpdatePPUStatistics(const PPUStatistics& PPUStatistics);
 
     // Intentionally copies to avoid needing a thread safe container returned.
     // If the statistics amount increases to a degree that thread safety would be faster, then I'll rework this.

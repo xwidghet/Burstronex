@@ -4,6 +4,7 @@
 #include "MemoryMapper.h"
 #include "Renderer.h"
 #include "RomParameters.h"
+#include "StatisticsManager.h"
 
 #include <cassert>
 #include <cstring>
@@ -132,6 +133,9 @@ void PPU::ExecuteScanlineLogic()
 
 			// Upload data to GPU for rendering
 			mRenderer->CopyPPUMemory(mPPUCTRL, mBackgroundDrawData, mChrMemory, mMemory, mPalleteMemory, mObjectAttributeMemory);
+
+			mStatisticsManager->UpdatePPUStatistics(mPPUStatistics);
+			mPPUStatistics.mStatusCallsSinceVBlank = 0;
 		}
 		else if (mCurrentScanline == PPU_PRE_RENDER_SCANLINE)
 		{
@@ -424,6 +428,8 @@ uint8_t PPU::ReadPPUSTATUS()
 	mPPUSTATUS &= (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
 	mbIsVBlank = false;
 	ClearWRegister();
+
+	mPPUStatistics.mStatusCallsSinceVBlank++;
 
 	return Value;
 }

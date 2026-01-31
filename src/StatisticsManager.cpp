@@ -14,6 +14,13 @@ void StatisticsManager::UpdateEmulationStatistics(const EmulationStatistics& Emu
     mStatistics.mEmulationStatistics = EmulationStatistics;
 }
 
+void StatisticsManager::UpdatePPUStatistics(const PPUStatistics& PPUStatistics)
+{
+    std::lock_guard<std::mutex> mLockGuard(mMutex);
+
+    mStatistics.mPPUStatistics = PPUStatistics;
+}
+
 StatisticsManager::Statistics StatisticsManager::GetStatistics()
 {
     std::lock_guard<std::mutex> mLockGuard(mMutex);

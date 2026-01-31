@@ -1,5 +1,7 @@
 #pragma once
 
+#include "StatisticsManager.h"
+
 #include <array>
 #include <cstdint>
 #include <vector>
@@ -279,6 +281,8 @@ enum class EOAMDMA {
 const uint32_t REGISTER_IGNORE_CYCLES = 29658 * 3;
 
 class PPU {
+	PPUStatistics mPPUStatistics;
+
 	struct PPUREGISTERS {
 		// During Rendering, used for scroll position.
 		// Outside Rendering, used for VRAM address.

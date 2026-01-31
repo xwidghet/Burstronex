@@ -287,6 +287,7 @@ void Renderer::RenderDebug()
 
         ImGui::Text(std::format("APU Buffer: {0:.0f}%\n", Stats.mAPUStatistics.mBufferFillPercentage*100.f).c_str());
         ImGui::Text(std::format("Emulation Speed: {0:.2f}%\n", Stats.mEmulationStatistics.mEmulationSpeed).c_str());
+        ImGui::Text(std::format("PPU Status Calls: {0}\n", Stats.mPPUStatistics.mStatusCallsSinceVBlank).c_str());
 
         ImGui::SeparatorText("Debug");
 
