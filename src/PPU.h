@@ -304,6 +304,14 @@ class PPU {
 		bool w;
 	} mRegisters;
 
+	// Registers memory mapped to CPU RAM
+	uint8_t mPPUCTRL = 0;
+	uint8_t mPPUMASK = 0;
+	uint8_t mPPUSTATUS = 0;
+	uint8_t mOAMADDR = 0;
+	uint8_t mPPUSCROLL = 0;
+	uint16_t mPPUADDR = 0;
+
 	struct PPUShiftRegisters {
 		uint16_t mPatternLow = 0;
 		uint16_t mPatternHigh = 0;
@@ -320,14 +328,6 @@ class PPU {
 	uint16_t mStripAddress = 0;
 	uint8_t mStripDataTemp = 0;
 	uint8_t mStripDataNext = 0;
-
-	// Registers memory mapped to CPU RAM
-	uint8_t mPPUCTRL = 0;
-	uint8_t mPPUMASK = 0;
-	uint8_t mPPUSTATUS = 0;
-	uint8_t mOAMADDR = 0;
-	uint8_t mPPUSCROLL = 0;
-	uint16_t mPPUADDR = 0;
 
 	uint16_t mTempTransferAddress = 0;
 
@@ -382,8 +382,28 @@ class PPU {
 	// Byte 3 - X Pos (Left side of sprite). 0xF9 - 0xFF are beyond the right edge of the screen. Sprites further left then 0 are not visible.
 	std::array<uint8_t, 256> mObjectAttributeMemory;
 
-	// All 12 memory regions stored (Address Begin, size)
-	std::array<std::pair<uint16_t, uint16_t>, 13> mMemoryMap;
+	std::array<uint8_t, 32> mSecondaryObjectAttributeMemory;
+
+	struct SpriteRegisters {
+		std::array<uint8_t, 8> SpriteShiftRegisterLow;
+		std::array<uint8_t, 8> SpriteShiftRegisterHigh;
+
+		std::array<uint8_t, 8> SpriteAttribute;
+		std::array<uint8_t, 8> SpritePattern;
+		std::array<uint8_t, 8> SpriteXPosition;
+		std::array<uint8_t, 8> SpriteYPosition;
+	} mSpriteShiftRegisters;
+
+	uint8_t mSpriteEvaluationTemp = 0;
+	uint8_t mSpriteEvaluationIndex = 0;
+	uint8_t mSpriteEvaluationStep = 0;
+	uint8_t mSecondaryObjectAttributeMemoryCount = 0;
+	bool mbSecondaryObjectAttributeMemoryFull = false;
+	bool mbScanlineContainsSprite0 = false;
+	bool mbSpriteEvaluationOverflowed = false;
+
+	uint16_t mSpriteStripAddress = 0;
+	uint8_t mSpriteStripTemp = 0;
 
 	// Pallete data of the Background so the GPU can render scrolling
 	// Size is 256*241 pixels of data
@@ -420,6 +440,10 @@ class PPU {
 
 	void ExecuteDotLogic(const bool bIsRenderingEnabled);
 
+	void SpriteEvaluation();
+
+	uint16_t CalculateSpriteAddress(uint8_t Index) const;
+
 	void PrepareNextStrip();
 
 	void ExecuteRendering(const bool bIsRenderingEnabled);
@@ -433,8 +457,6 @@ class PPU {
 	void IncrementScrollY();
 
 	void ResetScrollY();
-
-	void IncrementScrollX();
 
 	void ResetScrollX();
 

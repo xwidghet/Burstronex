@@ -15,23 +15,10 @@ PPU::PPU()
 	mChrMemory = {};
 	mPalleteMemory = {};
 	mObjectAttributeMemory = {};
+	mSecondaryObjectAttributeMemory = {};
 	mBackgroundDrawData = {};
 
-	mMemoryMap = std::array<std::pair<uint16_t, uint16_t>, 13>{{
-		{0x0000, 0x1000},
-		{0x1000, 0x1000},
-		{0x2000, 0x03C0},
-		{0x23C0, 0x0040},
-		{0x2400, 0x03C0},
-		{0x27C0, 0x0040},
-		{0x2800, 0x03C0},
-		{0x2BC0, 0x0040},
-		{0x2C00, 0x03C0},
-		{0x2FC0, 0x0040},
-		{0x3000, 0x3EFF},
-		{0x3F00, 0x0020},
-		{0x3F20, 0x00E0}
-	}};
+	mPPUStatistics = {};
 
 	mRAM = nullptr;
 }
@@ -153,6 +140,11 @@ void PPU::ExecuteDotLogic(const bool bIsRenderingEnabled)
 	if (mCurrentDot == IDLE_PHASE_CYCLE)
 		return;
 
+	if (bIsRenderingEnabled && IsInScanlineRange(VISIBLE_SCANLINE_RANGE))
+	{
+		SpriteEvaluation();
+	}
+
 	if (IsInScanlineRange(VISIBLE_SCANLINE_RANGE) || (mCurrentScanline == PPU_PRE_RENDER_SCANLINE))
 	{
 		PrepareNextStrip();
@@ -161,6 +153,198 @@ void PPU::ExecuteDotLogic(const bool bIsRenderingEnabled)
 	if (mCurrentScanline <= VISIBLE_SCANLINE_RANGE.second)
 	{
 		ExecuteRendering(bIsRenderingEnabled);
+	}
+}
+
+void PPU::SpriteEvaluation()
+{
+	if (mCurrentDot > 0 && mCurrentDot <= 64)
+	{
+		if (mCurrentDot == 1)
+		{
+			mSpriteEvaluationIndex = 0;
+			mbSecondaryObjectAttributeMemoryFull = false;
+			mbSpriteEvaluationOverflowed = false;
+		}
+
+		if ((mCurrentDot & 1) == 1)
+		{
+			mSpriteEvaluationTemp = 0xFF;
+		}
+		else
+		{
+			mSecondaryObjectAttributeMemory[mSpriteEvaluationIndex] = mSpriteEvaluationTemp;
+			mSpriteEvaluationIndex = (mSpriteEvaluationIndex + 1) & 0x1F;
+		}
+	}
+	else if (mCurrentDot > 64 && mCurrentDot <= 256)
+	{
+		if ((mCurrentDot & 1) == 1)
+		{
+			mSpriteEvaluationTemp = mObjectAttributeMemory[mOAMADDR];
+		}
+		else
+		{
+			if (mbSpriteEvaluationOverflowed == false)
+			{
+				if (mbSecondaryObjectAttributeMemoryFull == false)
+				{
+					mSecondaryObjectAttributeMemory[mSpriteEvaluationIndex] = mSpriteEvaluationTemp;
+				}
+
+				if (mSpriteEvaluationStep == 0)
+				{
+					uint16_t SpriteSize = (mPPUCTRL & (1 << 5)) != 0 ? 16 : 8;
+					if (((mCurrentScanline - mSpriteEvaluationTemp) >= 0) && ((mCurrentScanline - mSpriteEvaluationTemp) < SpriteSize))
+					{
+						if (mbSecondaryObjectAttributeMemoryFull == false)
+						{
+							mSpriteEvaluationIndex++;
+							mOAMADDR++;
+							if (mCurrentDot == 66)
+							{
+								mbScanlineContainsSprite0 = true;
+							}
+						}
+						else
+						{
+							mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_OVERFLOW_FLAG);
+						}
+
+						mSpriteEvaluationStep = (mSpriteEvaluationStep + 1) & 3;
+					}
+					else
+					{
+						mOAMADDR += 4;
+					}
+				}
+				else
+				{
+					mSpriteEvaluationIndex++;
+					mOAMADDR++;
+					if (mSpriteEvaluationIndex == 0x20)
+					{
+						mbSecondaryObjectAttributeMemoryFull = true;
+					}
+					mSpriteEvaluationStep = (mSpriteEvaluationStep + 1) & 3;
+				}
+
+				if (mOAMADDR == 0)
+				{
+					mbSpriteEvaluationOverflowed = true;
+				}
+			}
+		}
+	}
+	else if (mCurrentDot > 256 && mCurrentDot <= 320)
+	{
+		mOAMADDR = 0;
+
+		if (mCurrentDot == 257)
+		{
+			mSecondaryObjectAttributeMemoryCount = mSpriteEvaluationIndex;
+			mSpriteEvaluationIndex = 0;
+			mSpriteEvaluationStep = 0;
+		}
+
+		switch (mSpriteEvaluationStep)
+		{
+			case 0:
+				mSpriteShiftRegisters.SpriteYPosition[mSpriteEvaluationIndex/4] = mSecondaryObjectAttributeMemory[mSpriteEvaluationIndex];
+				mSpriteEvaluationIndex++;
+				break;
+			case 1:
+				mSpriteShiftRegisters.SpritePattern[mSpriteEvaluationIndex/4] = mSecondaryObjectAttributeMemory[mSpriteEvaluationIndex];
+				mSpriteEvaluationIndex++;
+				break;
+			case 2:
+				mSpriteShiftRegisters.SpriteAttribute[mSpriteEvaluationIndex/4] = mSecondaryObjectAttributeMemory[mSpriteEvaluationIndex];
+				mSpriteEvaluationIndex++;
+				break;
+			case 3:
+				mSpriteShiftRegisters.SpriteXPosition[mSpriteEvaluationIndex/4] = mSecondaryObjectAttributeMemory[mSpriteEvaluationIndex];
+				break;
+			case 4:
+				mSpriteStripAddress = CalculateSpriteAddress(mSpriteEvaluationIndex/4);
+				break;
+			case 5:
+				mSpriteStripTemp = ReadPPUMemory(mSpriteStripAddress);
+				if (mCurrentScanline == 261)
+				{
+					mSpriteStripTemp = 0;
+				}
+				if (const bool bFlipHorizontal = ((mSpriteShiftRegisters.SpriteAttribute[mSpriteEvaluationIndex/4] >> 6) & 1) == 1)
+				{
+					// Reverse bit order
+					mSpriteStripTemp = ((mSpriteStripTemp & 0xF0) >> 4) | ((mSpriteStripTemp & 0xF) << 4);
+					mSpriteStripTemp = ((mSpriteStripTemp & 0xCC) >> 2) | ((mSpriteStripTemp & 0x33) << 2);
+					mSpriteStripTemp = ((mSpriteStripTemp & 0xAA) >> 1) | ((mSpriteStripTemp & 0x55) << 1);
+				}
+				mSpriteShiftRegisters.SpriteShiftRegisterLow[mSpriteEvaluationIndex/4] = mSpriteStripTemp;
+				break;
+			case 6:
+				mSpriteStripAddress += 8;
+				break;
+			case 7:
+				mSpriteStripTemp = ReadPPUMemory(mSpriteStripAddress);
+				if (mCurrentScanline == 261)
+				{
+					mSpriteStripTemp = 0;
+				}
+				if (const bool bFlipHorizontal = ((mSpriteShiftRegisters.SpriteAttribute[mSpriteEvaluationIndex/4] >> 6) & 1) == 1)
+				{
+					// Reverse bit order
+					mSpriteStripTemp = ((mSpriteStripTemp & 0xF0) >> 4) | ((mSpriteStripTemp & 0xF) << 4);
+					mSpriteStripTemp = ((mSpriteStripTemp & 0xCC) >> 2) | ((mSpriteStripTemp & 0x33) << 2);
+					mSpriteStripTemp = ((mSpriteStripTemp & 0xAA) >> 1) | ((mSpriteStripTemp & 0x55) << 1);
+				}
+				mSpriteShiftRegisters.SpriteShiftRegisterHigh[mSpriteEvaluationIndex/4] = mSpriteStripTemp;
+				mSpriteEvaluationIndex++;
+				break;
+		}
+		mSpriteEvaluationStep = (mSpriteEvaluationStep + 1) & 7;
+	}
+}
+
+uint16_t PPU::CalculateSpriteAddress(uint8_t Index) const
+{
+	if (const bool bIs8x8SpriteMode = (mPPUCTRL & (1 << 5)) == 0)
+	{
+		uint16_t SpritePatternTableAddress = 0x1000 * uint16_t((mPPUCTRL & (1 << 3)) != 0);
+		uint16_t SpritePatternAddress = (mSpriteShiftRegisters.SpritePattern[Index] << 4);
+		uint16_t ScanlineOffset = (mCurrentScanline - mSpriteShiftRegisters.SpriteYPosition[Index]);
+
+		if (const bool bIsFlipped = ((mSpriteShiftRegisters.SpriteAttribute[Index] >> 7) & 1) != 0)
+		{
+			ScanlineOffset = (7-ScanlineOffset) & 7;
+		}
+
+		return SpritePatternTableAddress + SpritePatternAddress + ScanlineOffset;
+	}
+	else
+	{
+		if (const bool bIsNotFlipped = ((mSpriteShiftRegisters.SpriteAttribute[Index] >> 7) & 1) == 0)
+		{
+			uint16_t SpritePatternTableAddress = (mSpriteShiftRegisters.SpritePattern[Index] & 1) == 1 ? 0x1000 : 0;
+			uint16_t SpritePatternAddress = ((mSpriteShiftRegisters.SpritePattern[Index] & 0xFE) << 4);
+			uint16_t ScanlineOffset = (mCurrentScanline - mSpriteShiftRegisters.SpriteYPosition[Index]);
+
+			SpritePatternAddress += ScanlineOffset < 8 ? 0 : 16;
+			ScanlineOffset = ScanlineOffset < 8 ? ScanlineOffset : (ScanlineOffset & 7);
+
+			return (SpritePatternTableAddress | SpritePatternAddress) - ScanlineOffset;
+		}
+		else
+		{
+			uint16_t SpritePatternTableAddress = (mSpriteShiftRegisters.SpritePattern[Index] & 1) == 1 ? 0x1000 : 0;
+			uint16_t SpritePatternAddress = ((mSpriteShiftRegisters.SpritePattern[Index] & 0xFE) << 4);
+			uint16_t ScanlineOffset = (mCurrentScanline - mSpriteShiftRegisters.SpriteYPosition[Index]);
+
+			SpritePatternAddress += ScanlineOffset < 8 ? 16 : 7;
+			ScanlineOffset = ScanlineOffset < 8 ? ((ScanlineOffset & 7) + 7) : (ScanlineOffset & 7);
+
+			return (SpritePatternTableAddress | SpritePatternAddress) - ScanlineOffset;
+		}
 	}
 }
 
@@ -179,6 +363,24 @@ void PPU::PrepareNextStrip()
 				mShiftRegisters.mPatternHigh <<= 1;
 				mShiftRegisters.mAttributeLow <<= 1;
 				mShiftRegisters.mAttributeHigh <<= 1;
+			}
+			if (bBackgroundRendering || bRenderSprites)
+			{
+				if (mCurrentDot > 1 && mCurrentDot <= 256)
+				{
+					for (int i = 0; i < 8; i++)
+					{
+						if (mSpriteShiftRegisters.SpriteXPosition[i] > 0)
+						{
+							mSpriteShiftRegisters.SpriteXPosition[i]--;
+						}
+						else
+						{
+							mSpriteShiftRegisters.SpriteShiftRegisterLow[i] <<= 1;
+							mSpriteShiftRegisters.SpriteShiftRegisterHigh[i] <<= 1;
+						}
+					}
+				}
 			}
 
 			uint16_t BackgroundPatternTableAddress = 0x1000 * int((mPPUCTRL & (1 << 4)) != 0);
@@ -253,10 +455,6 @@ void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 {
 	if (bIsRenderingEnabled)
 	{
-		// Hack until Sprite 0 hit is implemented, where the PPU checks if an opaque pixel of a sprite overlaps an opaque pixel of a background.
-		// Which I imagine I can basically copy paste from my shader.
-		mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
-
 		if (IsInDotRange(INCREMENT_V_SCANLINE_DOT))
 		{
 			IncrementScrollY();
@@ -277,8 +475,8 @@ void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 		uint8_t PalleteHigh = 0;
 
 		bool bRenderBackground = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_BACKGROUND_RENDERING)) != 0;
-		bool bRenderBackgroundL8Px = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::BACKGROUND_LEFTMOST_8PX)) != 0;
-		if (bRenderBackground && (mCurrentDot > 8 || bRenderBackgroundL8Px))
+		bool bRenderBackgroundL8px = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::BACKGROUND_LEFTMOST_8PX)) != 0;
+		if (bRenderBackground && (mCurrentDot > 8 || bRenderBackgroundL8px))
 		{
 			uint8_t Column0 = ((mShiftRegisters.mPatternLow >> (15 - mRegisters.x)) & 1);
 			uint8_t Column1 = ((mShiftRegisters.mPatternHigh >> (15 - mRegisters.x)) & 1);
@@ -290,6 +488,53 @@ void PPU::ExecuteRendering(const bool bIsRenderingEnabled)
 
 			// Index 0 of all color palletes is a mirror of the background color which is the first color.
 			if ((PalleteLow == 0) && (PalleteHigh != 0))
+			{
+				PalleteHigh = 0;
+			}
+		}
+
+		bool bRenderSprites = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::ENABLE_SPRITE_RENDERING)) != 0;
+		bool bRenderSpriteL8px = (mPPUMASK & static_cast<uint8_t>(EPPUMASK::SPRITES_LEFTMOST_8PX)) != 0;
+		uint8_t SpritePalleteLow = 0;
+		uint8_t SpritePalleteHigh = 0;
+		bool bSpritePriority = false;
+
+		if (bRenderSprites && (mCurrentDot > 8 || bRenderSpriteL8px))
+		{
+			for (int i = 0; i < 8; i++)
+			{
+				if (mSpriteShiftRegisters.SpriteXPosition[i] == 0 && i < (mSecondaryObjectAttributeMemoryCount / 4))
+				{
+					SpritePalleteLow = (mSpriteShiftRegisters.SpriteShiftRegisterLow[i] & 0x80) != 0;
+					SpritePalleteLow |= 2*((mSpriteShiftRegisters.SpriteShiftRegisterHigh[i] & 0x80) != 0);
+
+					SpritePalleteHigh = (mSpriteShiftRegisters.SpriteAttribute[i] & 0x3) | 0x4;
+					bSpritePriority = ((mSpriteShiftRegisters.SpriteAttribute[i] >> 5) & 1) == 0;
+				}
+				else
+				{
+					continue;
+				}
+				if (SpritePalleteLow != 0)
+				{
+					if (mCurrentDot < 256)
+					{
+						const bool bOverlappingBackground = i == 0 && mbScanlineContainsSprite0 && SpritePalleteLow != 0 && PalleteLow != 0 && bRenderBackground;
+						if (bOverlappingBackground)
+						{
+							mPPUSTATUS |= static_cast<uint8_t>(EPPUSTATUS::SPRITE_0_HIT_FLAG);
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		if ((bSpritePriority && SpritePalleteLow != 0) || PalleteLow == 0)
+		{
+			PalleteLow = SpritePalleteLow;
+			PalleteHigh = SpritePalleteHigh;
+			if (PalleteLow == 0)
 			{
 				PalleteHigh = 0;
 			}
@@ -370,22 +615,6 @@ void PPU::ResetScrollY()
 	mRegisters.v = (mRegisters.v & 0b0000010000011111) | (mRegisters.t & 0b0111101111100000);
 }
 
-void PPU::IncrementScrollX()
-{
-	// Handled in case 7 of PrepareNextStrip
-	// However I feel like the cycle timing doesn't match the documentation.
-	/*'
-	if ((mRegisters.v & 0x001F) == 31)
-	{
-		mRegisters.v &= ~0x001F;          // coarse X = 0
-		mRegisters.v ^= 0x0400;           // switch horizontal nametable
-	}
-	else
-	{
-		mRegisters.v += 1;
-	}*/
-}
-
 void PPU::ResetScrollX()
 {
 	mRegisters.v = (mRegisters.v & 0b0111101111100000) | (mRegisters.t & 0b0000010000011111);
@@ -427,6 +656,7 @@ uint8_t PPU::ReadPPUSTATUS()
 
 	mPPUSTATUS &= (~static_cast<uint8_t>(EPPUSTATUS::VBLANK_FLAG));
 	mbIsVBlank = false;
+	mbNMIOutputFlag = false;
 	ClearWRegister();
 
 	mPPUStatistics.mStatusCallsSinceVBlank++;
